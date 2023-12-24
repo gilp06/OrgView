@@ -1,6 +1,9 @@
 import dearpygui.dearpygui as dpg
 import dearpygui.demo
+import psycopg2
+
 from workplace import Workplace
+from database_manager import Database
 import ctypes
 
 
@@ -12,11 +15,8 @@ import ctypes
 
 
 class LocalData:
-    workplaces = [
-        Workplace(name="Carbondale Elementary District 95", about="K-8 District in Carbondale", phone="(618) 457-3591",
-                  address="1150 E Grand Ave, Carbondale, IL 62901")
-
-    ]
+    workplaces = []
+    database = None
 
 
 admin = True
@@ -51,7 +51,8 @@ def show_modify_modal(wp=Workplace("", "", "", ""), edit=False):
                 wp.phone = new_phone
                 wp.address = new_address
             else:
-                LocalData.workplaces.append(Workplace(name=new_name, phone=new_phone, address=new_address, about=new_about))
+                LocalData.workplaces.append(
+                    Workplace(name=new_name, phone=new_phone, address=new_address, about=new_about))
             print(LocalData.workplaces)
             refresh_content()
         dpg.set_value(new_input_name, "")
@@ -116,13 +117,40 @@ def draw_workplaces_panel():
     refresh_content()
 
 
+
+
+def draw_login_panel():
+    def connection_options_callback(sender, unused, user_data):
+        if dpg.is_item_shown(connection_options_group):
+            dpg.configure_item(connection_options_group, show=False)
+        else:
+            dpg.configure_item(connection_options_group, show=True)
+
+    def login_to_database(sender, unused, user_data):
+        dpg.set_value(status, "Connecting")
+        dpg.show_item(status)
+        LocalData.database = Database(dpg.get_value(username), dpg.get_value(password), dpg.get_value(address),
+                                          dpg.get_value(port))
+        dpg.hide_item(login_id)
+
+    with dpg.window(label="Login", modal=True, no_close=True, autosize=True, no_move=False) as login_id:
+        username = dpg.add_input_text(label="Username")
+        password = dpg.add_input_text(label="Password", password=True)
+        status = dpg.add_text(parent=login_id, label="Connecting", show=False)
+        with dpg.group(show=False) as connection_options_group:
+            address = dpg.add_input_text(label="Address", default_value="localhost")
+            port = dpg.add_input_text(label="Port", default_value="5432")
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Sign in", callback=login_to_database)
+            dpg.add_button(label="Options", callback=connection_options_callback)
+
+
 with dpg.window(tag="Primary Window"):
     dpg.bind_font(default_font)
+    draw_login_panel()
     with dpg.tab_bar():
         with dpg.tab(label="Workplaces"):
             draw_workplaces_panel()
-
-dearpygui.demo.show_demo()
 
 dpg.create_viewport(title="CCHS Coding and Programming", width=800, height=600)
 dpg.setup_dearpygui()
