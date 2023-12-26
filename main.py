@@ -127,10 +127,17 @@ def draw_login_panel():
             dpg.configure_item(connection_options_group, show=True)
 
     def login_to_database(sender, unused, user_data):
+        dpg.disable_item(login_button)
         dpg.set_value(status, "Connecting")
         dpg.show_item(status)
-        LocalData.database = Database(dpg.get_value(username), dpg.get_value(password), dpg.get_value(address),
+        try:
+            LocalData.database = Database(dpg.get_value(username), dpg.get_value(password), dpg.get_value(address),
                                           dpg.get_value(port))
+        except psycopg2.OperationalError:
+            print("failed to log in")
+            dpg.set_value(status, "Invalid password try again")
+            dpg.enable_item(login_button)
+            return
         dpg.hide_item(login_id)
 
     with dpg.window(label="Login", modal=True, no_close=True, autosize=True, no_move=False) as login_id:
@@ -141,7 +148,7 @@ def draw_login_panel():
             address = dpg.add_input_text(label="Address", default_value="localhost")
             port = dpg.add_input_text(label="Port", default_value="5432")
         with dpg.group(horizontal=True):
-            dpg.add_button(label="Sign in", callback=login_to_database)
+            login_button = dpg.add_button(label="Sign in", callback=login_to_database)
             dpg.add_button(label="Options", callback=connection_options_callback)
 
 
