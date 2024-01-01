@@ -15,8 +15,11 @@ import ctypes
 
 
 class LocalData:
-    workplaces = []
     database = None
+    workplaces = []
+    accounts_tab = 0
+    workplaces_tab = 0
+    tab_bar = 0
 
 
 admin = True
@@ -29,105 +32,27 @@ with dpg.font_registry():
     bold_font = dpg.add_font("fonts/NotoSansDisplay-Bold.ttf", 20)
 
 
-def search_callback(sender, filter_string):
-    dpg.set_value("filter_id", filter_string)
-
-
-def delete_callback(sender, unused, user_data):
-    LocalData.workplaces.remove(user_data)
-    refresh_content()
-
-
-def show_modify_modal(wp=Workplace("", "", "", ""), edit=False):
-    def add_modal_callback(sender, unused, user_data):
-        if user_data[1]:
-            new_name = dpg.get_value(new_input_name)
-            new_about = dpg.get_value(new_input_about)
-            new_phone = dpg.get_value(new_input_phone)
-            new_address = dpg.get_value(new_input_address)
-            if edit:
-                wp.name = new_name
-                wp.about = new_about
-                wp.phone = new_phone
-                wp.address = new_address
-            else:
-                LocalData.workplaces.append(
-                    Workplace(name=new_name, phone=new_phone, address=new_address, about=new_about))
-            print(LocalData.workplaces)
-            refresh_content()
-        dpg.set_value(new_input_name, "")
-        dpg.set_value(new_input_phone, "")
-        dpg.set_value(new_input_address, "")
-        dpg.hide_item(add_modal_id)
-
-    with dpg.mutex():
-        viewport_width = dpg.get_viewport_client_width()
-        viewport_height = dpg.get_viewport_client_height()
-
-        with dpg.window(no_title_bar=True, modal=True, no_close=True, autosize=True, no_move=True) as add_modal_id:
-            title = dpg.add_text("Edit Business/Organization") if edit else dpg.add_text("Add Business/Organization")
-            dpg.bind_item_font(title, title_font)
-            # todo add better text input boxes
-            new_input_name = dpg.add_input_text(label="Name", default_value=wp.name)
-            new_input_about = dpg.add_input_text(label="About", multiline=True, default_value=wp.about)
-            new_input_phone = dpg.add_input_text(label="Phone Number", default_value=wp.phone)
-            new_input_address = dpg.add_input_text(label="Address", default_value=wp.address)
-            with dpg.group(horizontal=True):
-                dpg.add_button(label="Save", user_data=(add_modal_id, True), callback=add_modal_callback)
-                dpg.add_button(label="Cancel", user_data=(add_modal_id, False), callback=add_modal_callback)
-    dpg.split_frame()
-    width = dpg.get_item_width(add_modal_id)
-    height = dpg.get_item_height(add_modal_id)
-    dpg.set_item_pos(add_modal_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
-
-
-def refresh_content():
-    dpg.delete_item("workplace_content")
-    with dpg.group(tag="workplace_content", parent="Primary Window"):
-        with dpg.filter_set(id="filter_id"):
-            for wp in LocalData.workplaces:
-                with dpg.group(filter_key=wp.name.lower(), tag=wp.name):
-                    title = dpg.add_text(wp.name, wrap=0)
-                    dpg.bind_item_font(title, title_font)
-                    desc = dpg.add_text("About", wrap=0)
-                    dpg.bind_item_font(desc, bold_font)
-                    dpg.add_text(wp.about)
-                    loc = dpg.add_text("Location", wrap=0)
-                    dpg.bind_item_font(loc, bold_font)
-                    dpg.add_text(wp.address)
-                    contact = dpg.add_text("Contact Information", wrap=0)
-                    dpg.add_text(wp.phone)
-                    dpg.bind_item_font(contact, bold_font)
-                    with dpg.group(horizontal=True):
-                        dpg.add_button(label="Edit", show=admin, user_data=wp, callback=edit_callback)
-                        dpg.add_button(label="Delete", show=admin, user_data=wp, callback=delete_callback)
-                    dpg.add_separator()
-
-
-def edit_callback(sender, unused, user_data):
-    show_modify_modal(user_data, edit=True)
-
-
-def draw_workplaces_panel():
-    dpg.add_input_text(callback=search_callback, width=-1, hint="Search...")
-    with dpg.group(horizontal=True):
-        dpg.add_button(label="Refresh")
-        dpg.add_button(label="+", show=admin, callback=lambda: show_modify_modal())
-    dpg.add_separator()
-    refresh_content()
-
-
+def draw_accounts_panel():
+    with dpg.tab(label="Accounts", parent=LocalData.tab_bar) as LocalData.accounts_tab:
+        dpg.add_input_text(callback=search_users_callback, width=-1, hint="Search Users...")
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Refresh", callback=refresh_all_content)
+            dpg.add_button(label="+")
+        dpg.add_separator()
 
 
 def draw_login_panel():
     def connection_options_callback(sender, unused, user_data):
         if dpg.is_item_shown(connection_options_group):
             dpg.configure_item(connection_options_group, show=False)
+            dpg.configure_item(login_id, height=102)
         else:
             dpg.configure_item(connection_options_group, show=True)
+            dpg.configure_item(login_id, height=164)
 
     def login_to_database(sender, unused, user_data):
         dpg.disable_item(login_button)
+        dpg.configure_item(login_id, height=135)
         dpg.set_value(status, "Connecting")
         dpg.show_item(status)
         try:
@@ -139,25 +64,230 @@ def draw_login_panel():
             dpg.enable_item(login_button)
             return
         dpg.hide_item(login_id)
+        draw_workplaces_panel()
+        draw_accounts_panel()
+        refresh_all_content()
 
-    with dpg.window(label="Login", modal=True, no_close=True, autosize=True, no_move=False) as login_id:
-        username = dpg.add_input_text(label="Username")
-        password = dpg.add_input_text(label="Password", password=True)
-        status = dpg.add_text(parent=login_id, label="Connecting", show=False)
-        with dpg.group(show=False) as connection_options_group:
-            address = dpg.add_input_text(label="Address", default_value="localhost")
-            port = dpg.add_input_text(label="Port", default_value="5432")
+    with dpg.mutex():
+        width = 406
+        height = 102
+        viewport_width = dpg.get_viewport_client_width()
+        viewport_height = dpg.get_viewport_client_height()
+        with dpg.window(no_title_bar=True, modal=True, no_close=True, width=width, height=height, no_move=True,
+                        no_resize=True) as login_id:
+            username = dpg.add_input_text(width=-1, hint="Username")
+            password = dpg.add_input_text(width=-1, hint="Password", password=True)
+            status = dpg.add_text(parent=login_id, label="Connecting", show=False)
+            with dpg.group(show=False) as connection_options_group:
+                address = dpg.add_input_text(label="Address", default_value="localhost")
+                port = dpg.add_input_text(label="Port", default_value="5432")
+            with dpg.group(horizontal=True):
+                login_button = dpg.add_button(label="Sign in", callback=login_to_database)
+                dpg.add_button(label="Options", callback=connection_options_callback)
+        dpg.set_item_pos(login_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
+
+
+def draw_workplaces_panel():
+    with dpg.tab(label="Workplaces", parent=LocalData.tab_bar) as LocalData.workplaces_tab:
+        dpg.add_input_text(callback=search_workplaces_callback, width=-1, hint="Search Workplaces...")
         with dpg.group(horizontal=True):
-            login_button = dpg.add_button(label="Sign in", callback=login_to_database)
-            dpg.add_button(label="Options", callback=connection_options_callback)
+            dpg.add_button(label="Refresh", callback=refresh_all_content)
+            dpg.add_button(label="+", show=False, callback=lambda: show_modify_modal(), tag="AddButton")
+        dpg.add_separator()
 
+
+def show_delete_prompt(workplace):
+    def delete_callback(sender, unused, user_data):
+        if user_data:
+            LocalData.database.delete_id(workplace[4])
+            refresh_all_content()
+        dpg.hide_item(delete_id)
+
+    with dpg.mutex():
+        viewport_width = dpg.get_viewport_client_width()
+        viewport_height = dpg.get_viewport_client_height()
+        with dpg.window(no_title_bar=True, modal=True, no_close=True, autosize=True, no_move=True) as delete_id:
+            dpg.add_text("Do you really want to delete this workplace?", wrap=-1)
+            dpg.add_text()
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Yes", width=150, user_data=True, callback=delete_callback)
+                dpg.add_button(label="No", width=150, user_data=False, callback=delete_callback)
+    dpg.split_frame()
+    width = dpg.get_item_width(delete_id)
+    height = dpg.get_item_height(delete_id)
+    dpg.set_item_pos(delete_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
+
+
+def search_workplaces_callback(sender, filter_string):
+    dpg.set_value("workplace_filter_id", filter_string)
+
+
+def search_users_callback(sender, filter_string):
+    dpg.set_value("users_filter_id", filter_string)
+
+
+def show_modify_modal(wp=("", "", "", ""), edit=False):
+    def add_modal_callback(sender, unused, user_data):
+        if user_data[1]:
+            new_name = dpg.get_value(new_input_name)
+            new_about = dpg.get_value(new_input_about)
+            new_phone = dpg.get_value(new_input_phone)
+            new_address = dpg.get_value(new_input_address)
+            if edit:
+                LocalData.database.edit_id((new_name, new_about, new_address, new_phone), wp[4])
+            else:
+                LocalData.database.add_content((new_name, new_about, new_address, new_phone))
+            refresh_all_content()
+        dpg.set_value(new_input_name, "")
+        dpg.set_value(new_input_phone, "")
+        dpg.set_value(new_input_address, "")
+        dpg.hide_item(add_modal_id)
+
+    with dpg.mutex():
+        viewport_width = dpg.get_item_width("Primary Window")
+        viewport_height = dpg.get_item_height("Primary Window")
+
+        with dpg.window(no_title_bar=True, modal=True, no_close=True, autosize=True, no_move=True) as add_modal_id:
+            title = dpg.add_text("Edit Business/Organization") if edit else dpg.add_text("Add Business/Organization")
+            dpg.bind_item_font(title, title_font)
+            # todo add better text input boxes
+            new_input_name = dpg.add_input_text(label="Name", default_value=wp[0])
+            new_input_about = dpg.add_input_text(label="About", multiline=True, default_value=wp[1])
+            new_input_phone = dpg.add_input_text(label="Phone Number", default_value=wp[2])
+            new_input_address = dpg.add_input_text(label="Address", default_value=wp[3])
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Save", user_data=(add_modal_id, True), callback=add_modal_callback)
+                dpg.add_button(label="Cancel", user_data=(add_modal_id, False), callback=add_modal_callback)
+    dpg.split_frame()
+    width = dpg.get_item_width(add_modal_id)
+    height = dpg.get_item_height(add_modal_id)
+    dpg.set_item_pos(add_modal_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
+
+
+def refresh_workplace_content(editor):
+    dpg.delete_item("workplace_content")
+    LocalData.workplaces = LocalData.database.get_workplace_content()
+    with dpg.group(tag="workplace_content", parent=LocalData.workplaces_tab):
+        with dpg.filter_set(id="workplace_filter_id"):
+            for wp in LocalData.workplaces:
+                with dpg.group(filter_key=wp[0].lower(), tag=wp[4]):
+                    title = dpg.add_text(wp[0], wrap=0)
+                    dpg.bind_item_font(title, title_font)
+                    desc = dpg.add_text("About", wrap=0)
+                    dpg.bind_item_font(desc, bold_font)
+                    dpg.add_text(wp[1])
+                    loc = dpg.add_text("Location", wrap=0)
+                    dpg.bind_item_font(loc, bold_font)
+                    dpg.add_text(wp[2])
+                    contact = dpg.add_text("Contact Information", wrap=0)
+                    dpg.add_text(wp[3])
+                    dpg.bind_item_font(contact, bold_font)
+                    with dpg.group(horizontal=True):
+                        dpg.add_button(label="Edit", show=editor, user_data=wp, callback=edit_callback)
+                        dpg.add_button(label="Delete", show=editor, user_data=wp, callback=delete_modal_callback)
+                    dpg.add_separator()
+
+
+def show_reset_password(user):
+    def reset_password_callback(sender, unused, user_data):
+        if user_data:
+            LocalData.database.change_password(user, dpg.get_value(pw))
+            refresh_all_content()
+        dpg.hide_item(reset_id)
+
+    with dpg.mutex():
+        viewport_width = dpg.get_viewport_client_width()
+        viewport_height = dpg.get_viewport_client_height()
+        with dpg.window(no_title_bar=True, modal=True, no_close=True, autosize=True, no_move=True) as reset_id:
+            dpg.add_text("Please enter a new password:")
+            pw = dpg.add_input_text(password=True)
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Confirm", width=150, user_data=(True, pw), callback=reset_password_callback)
+                dpg.add_button(label="Cancel", width=150, user_data=(False, ""), callback=reset_password_callback)
+    dpg.split_frame()
+    width = dpg.get_item_width(reset_id)
+    height = dpg.get_item_height(reset_id)
+    dpg.set_item_pos(reset_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
+
+
+def refresh_accounts_content():
+    def change_role_callback(sender, unused, user_data):
+        print(user_data)
+        if user_data[0]:
+            LocalData.database.set_role_for_user(user_data[1], 'viewer')
+            LocalData.database.remove_role_for_user(user_data[1], 'editor')
+        else:
+            LocalData.database.set_role_for_user(user_data[1], 'editor')
+            LocalData.database.remove_role_for_user(user_data[1], 'viewer')
+        refresh_accounts_content()
+
+    def delete_user_callback(sender, unused, user_data):
+        LocalData.database.delete_user(user_data)
+        refresh_all_content()
+
+    dpg.delete_item("accounts_content")
+    if 'admin' not in LocalData.database.roles:
+        return
+    with dpg.group(tag="accounts_content", parent=LocalData.accounts_tab):
+        with dpg.table(header_row=True):
+            dpg.add_table_column(label="Username")
+            dpg.add_table_column(label="Permissions")
+            dpg.add_table_column()
+            dpg.add_table_column()
+            dpg.add_table_column()
+            for i in LocalData.database.get_users():
+                with dpg.table_row():
+                    role = LocalData.database.get_roles_for_user(i[0])[0]
+                    dpg.add_text(i[0])
+                    dpg.add_text(str.title(role))
+                    if role != 'admin':
+                        text = "Enable Editing" if role == 'viewer' else "Disable Editing"
+                        dpg.add_button(label=text, user_data=(role == 'editor', i[0]), callback=change_role_callback)
+                        dpg.add_button(label="Reset Password", callback=lambda: show_reset_password(i[0]))
+                        dpg.add_button(label="Delete User", user_data=i[0], callback=delete_user_callback)
+
+
+def refresh_all_content():
+    LocalData.database.update_roles()
+    dpg.hide_item(LocalData.accounts_tab)
+    editor = False
+    if 'admin' in LocalData.database.roles:
+        dpg.show_item(LocalData.accounts_tab)
+        editor = True
+        dpg.show_item("AddButton")
+    if 'editor' in LocalData.database.roles:
+        dpg.hide_item(LocalData.accounts_tab)
+        editor = True
+        dpg.show_item("AddButton")
+    if 'viewer' in LocalData.database.roles:
+        dpg.hide_item(LocalData.accounts_tab)
+        dpg.hide_item("AddButton")
+    refresh_workplace_content(editor)
+    refresh_accounts_content()
+
+
+def delete_modal_callback(sender, unused, user_data):
+    show_delete_prompt(user_data)
+
+
+def edit_callback(sender, unused, user_data):
+    show_modify_modal(user_data, edit=True)
+
+
+def visible_call(sender, app_data):
+    print("visible")
+    draw_login_panel()
+    dpg.bind_item_handler_registry("Primary Window", 0)
+
+
+with dpg.item_handler_registry(tag="primary_handler") as handler:
+    dpg.add_item_visible_handler(callback=visible_call)
 
 with dpg.window(tag="Primary Window"):
     dpg.bind_font(default_font)
-    draw_login_panel()
-    with dpg.tab_bar():
-        with dpg.tab(label="Workplaces"):
-            draw_workplaces_panel()
+    LocalData.tab_bar = dpg.add_tab_bar()
+
+dpg.bind_item_handler_registry("Primary Window", "primary_handler")
 
 dpg.create_viewport(title="CCHS Coding and Programming", width=800, height=600)
 dpg.setup_dearpygui()
