@@ -34,10 +34,10 @@ with dpg.font_registry():
 
 def draw_accounts_panel():
     with dpg.tab(label="Accounts", parent=LocalData.tab_bar) as LocalData.accounts_tab:
-        dpg.add_input_text(callback=search_users_callback, width=-1, hint="Search Users...")
+        dpg.add_input_text(callback=search_users_callback, width=-1, hint="Search Users...", tag="UserSearch")
         with dpg.group(horizontal=True):
             dpg.add_button(label="Refresh", callback=refresh_all_content)
-            dpg.add_button(label="+")
+            dpg.add_button(label="+", callback=show_add_user_modal)
         dpg.add_separator()
 
 
@@ -123,7 +123,7 @@ def search_workplaces_callback(sender, filter_string):
 
 
 def search_users_callback(sender, filter_string):
-    dpg.set_value("users_filter_id", filter_string)
+    refresh_accounts_content(filter_string)
 
 
 def show_modify_modal(wp=("", "", "", ""), edit=False):
@@ -188,9 +188,10 @@ def refresh_workplace_content(editor):
                     dpg.add_separator()
 
 
-def show_reset_password(user):
-    def reset_password_callback(sender, unused, user_data):
-        if user_data:
+def show_reset_password(sender, unused, user):
+    def reset_password_callback(s, u, accepted):
+        if accepted[0]:
+            print("Change password")
             LocalData.database.change_password(user, dpg.get_value(pw))
             refresh_all_content()
         dpg.hide_item(reset_id)
@@ -210,7 +211,37 @@ def show_reset_password(user):
     dpg.set_item_pos(reset_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
 
 
-def refresh_accounts_content():
+def show_add_user_modal():
+    def add_modal_callback(sender, unused, user_data):
+        if user_data[1]:
+            new_name = dpg.get_value(new_input_name)
+            new_password = dpg.get_value(new_input_password)
+            LocalData.database.add_user(new_name, new_password)
+            refresh_all_content()
+        dpg.set_value(new_input_name, "")
+        dpg.set_value(new_input_password, "")
+        dpg.hide_item(add_user_modal_id)
+
+    with dpg.mutex():
+        viewport_width = dpg.get_item_width("Primary Window")
+        viewport_height = dpg.get_item_height("Primary Window")
+
+        with dpg.window(no_title_bar=True, modal=True, no_close=True, autosize=True, no_move=True) as add_user_modal_id:
+            title = dpg.add_text("Add User")
+            dpg.bind_item_font(title, title_font)
+            # todo add better text input boxes
+            new_input_name = dpg.add_input_text(label="Username")
+            new_input_password = dpg.add_input_text(label="Password")
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Save", user_data=(add_user_modal_id, True), callback=add_modal_callback)
+                dpg.add_button(label="Cancel", user_data=(add_user_modal_id, False), callback=add_modal_callback)
+    dpg.split_frame()
+    width = dpg.get_item_width(add_user_modal_id)
+    height = dpg.get_item_height(add_user_modal_id)
+    dpg.set_item_pos(add_user_modal_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
+
+
+def refresh_accounts_content(filter_string):
     def change_role_callback(sender, unused, user_data):
         print(user_data)
         if user_data[0]:
@@ -219,12 +250,14 @@ def refresh_accounts_content():
         else:
             LocalData.database.set_role_for_user(user_data[1], 'editor')
             LocalData.database.remove_role_for_user(user_data[1], 'viewer')
-        refresh_accounts_content()
+        refresh_accounts_content(filter_string)
 
     def delete_user_callback(sender, unused, user_data):
         LocalData.database.delete_user(user_data)
         refresh_all_content()
 
+    user_list = list(LocalData.database.get_users())
+    user_list.sort()
     dpg.delete_item("accounts_content")
     if 'admin' not in LocalData.database.roles:
         return
@@ -235,7 +268,9 @@ def refresh_accounts_content():
             dpg.add_table_column()
             dpg.add_table_column()
             dpg.add_table_column()
-            for i in LocalData.database.get_users():
+            for i in user_list:
+                if filter_string not in i[0]:
+                    continue
                 with dpg.table_row():
                     role = LocalData.database.get_roles_for_user(i[0])[0]
                     dpg.add_text(i[0])
@@ -243,7 +278,7 @@ def refresh_accounts_content():
                     if role != 'admin':
                         text = "Enable Editing" if role == 'viewer' else "Disable Editing"
                         dpg.add_button(label=text, user_data=(role == 'editor', i[0]), callback=change_role_callback)
-                        dpg.add_button(label="Reset Password", callback=lambda: show_reset_password(i[0]))
+                        dpg.add_button(label="Reset Password", user_data=i[0], callback=show_reset_password)
                         dpg.add_button(label="Delete User", user_data=i[0], callback=delete_user_callback)
 
 
@@ -263,7 +298,7 @@ def refresh_all_content():
         dpg.hide_item(LocalData.accounts_tab)
         dpg.hide_item("AddButton")
     refresh_workplace_content(editor)
-    refresh_accounts_content()
+    refresh_accounts_content(dpg.get_value("UserSearch"))
 
 
 def delete_modal_callback(sender, unused, user_data):

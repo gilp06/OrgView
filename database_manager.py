@@ -65,7 +65,15 @@ class Database:
         self.conn.commit()
 
     def change_password(self, user, password):
+        print(user)
+        print(password)
         self.cursor.execute(
             psycopg2.sql.SQL("ALTER USER {user} WITH PASSWORD %s;").format(user=psycopg2.sql.Identifier(user)),
-            (password,))
+            (str(password),))
         self.conn.commit()
+
+    def add_user(self, user, password):
+        self.cursor.execute(
+            psycopg2.sql.SQL("CREATE ROLE {user} WITH LOGIN").format(user=psycopg2.sql.Identifier(user)))
+        self.cursor.execute(psycopg2.sql.SQL("GRANT viewer TO {user}").format(user=psycopg2.sql.Identifier(user)))
+        self.change_password(user, password)
