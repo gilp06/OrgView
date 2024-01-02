@@ -1,10 +1,9 @@
 import dearpygui.dearpygui as dpg
-import dearpygui.demo
 import psycopg2
-
+import themes
+import util
 from workplace import Workplace
 from database_manager import Database
-import ctypes
 
 
 # Create a program that allows your school’s Career and Technical Education Department to
@@ -12,7 +11,6 @@ import ctypes
 # should include information on at least 25 different partners, with details such as, but not
 # limited to, type of organization, resources available, and direct contact information for an
 # individual. The program should enable users to search and filter the information as needed.
-
 
 class LocalData:
     database = None
@@ -25,10 +23,10 @@ class LocalData:
 admin = True
 dpg.create_context()
 # Basically all draw code is written here and must be updated within the dpg.window thingy
-
+themes.add_themes()
 with dpg.font_registry():
     default_font = dpg.add_font("fonts/NotoSansDisplay-Regular.ttf", 20)
-    title_font = dpg.add_font("fonts/NotoSansDisplay-Regular.ttf", 28)
+    title_font = dpg.add_font("fonts/NotoSansDisplay-Regular.ttf", 32)
     bold_font = dpg.add_font("fonts/NotoSansDisplay-Bold.ttf", 20)
 
 
@@ -69,10 +67,10 @@ def draw_login_panel():
         refresh_all_content()
 
     with dpg.mutex():
-        width = 406
         height = 102
         viewport_width = dpg.get_viewport_client_width()
         viewport_height = dpg.get_viewport_client_height()
+        width = viewport_width // 2
         with dpg.window(no_title_bar=True, modal=True, no_close=True, width=width, height=height, no_move=True,
                         no_resize=True) as login_id:
             username = dpg.add_input_text(width=-1, hint="Username")
@@ -126,65 +124,122 @@ def search_users_callback(sender, filter_string):
     refresh_accounts_content(filter_string)
 
 
-def show_modify_modal(wp=("", "", "", ""), edit=False):
+def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
     def add_modal_callback(sender, unused, user_data):
+        new_data = (
+            dpg.get_value(new_input_organization_name),
+            dpg.get_value(new_input_type_of_organization),
+            dpg.get_value(new_input_location),
+            dpg.get_value(new_input_resources_available),
+            dpg.get_value(new_input_contact_person),
+            dpg.get_value(new_input_contact_email),
+            dpg.get_value(new_input_contact_phone),
+            dpg.get_value(new_input_website),
+            dpg.get_value(new_input_description)
+        )
         if user_data[1]:
-            new_name = dpg.get_value(new_input_name)
-            new_about = dpg.get_value(new_input_about)
-            new_phone = dpg.get_value(new_input_phone)
-            new_address = dpg.get_value(new_input_address)
             if edit:
-                LocalData.database.edit_id((new_name, new_about, new_address, new_phone), wp[4])
+                LocalData.database.edit_id(new_data, wp[0])
             else:
-                LocalData.database.add_content((new_name, new_about, new_address, new_phone))
+                LocalData.database.add_content(new_data)
             refresh_all_content()
-        dpg.set_value(new_input_name, "")
-        dpg.set_value(new_input_phone, "")
-        dpg.set_value(new_input_address, "")
+        dpg.set_value(new_input_organization_name, "")
+        dpg.set_value(new_input_type_of_organization, "")
+        dpg.set_value(new_input_location, "")
+        dpg.set_value(new_input_website, "")
+        dpg.set_value(new_input_resources_available, "")
+        dpg.set_value(new_input_contact_person, "")
+        dpg.set_value(new_input_contact_email, "")
+        dpg.set_value(new_input_contact_phone, "")
+        dpg.set_value(new_input_description, "")
         dpg.hide_item(add_modal_id)
 
     with dpg.mutex():
         viewport_width = dpg.get_item_width("Primary Window")
         viewport_height = dpg.get_item_height("Primary Window")
-
-        with dpg.window(no_title_bar=True, modal=True, no_close=True, autosize=True, no_move=True) as add_modal_id:
+        width = viewport_width // 1.5
+        height = viewport_height // 1.5
+        with dpg.window(no_title_bar=True, modal=True, no_close=True, width=width, height=height, no_move=True,
+                        no_resize=True) as add_modal_id:
             title = dpg.add_text("Edit Business/Organization") if edit else dpg.add_text("Add Business/Organization")
             dpg.bind_item_font(title, title_font)
             # todo add better text input boxes
-            new_input_name = dpg.add_input_text(label="Name", default_value=wp[0])
-            new_input_about = dpg.add_input_text(label="About", multiline=True, default_value=wp[1])
-            new_input_phone = dpg.add_input_text(label="Phone Number", default_value=wp[2])
-            new_input_address = dpg.add_input_text(label="Address", default_value=wp[3])
+            with dpg.group(width=-1):
+                new_input_organization_name = dpg.add_input_text(hint="Organization Name", default_value=wp[1])
+                new_input_type_of_organization = dpg.add_combo(items=LocalData.database.get_enum_options(),
+                                                               default_value=(
+                                                                   "Organization Type" if wp[2] == "" else wp[2]))
+                new_input_location = dpg.add_input_text(hint="Location", default_value=wp[3])
+                new_input_website = dpg.add_input_text(hint="Website", default_value=wp[8])
+                dpg.add_text("Resources Available")
+                new_input_resources_available = dpg.add_input_text(multiline=True, default_value=wp[4])
+                dpg.add_text("Contact Information")
+                new_input_contact_person = dpg.add_input_text(hint="Name", width=-1, default_value=wp[5])
+                new_input_contact_email = dpg.add_input_text(hint="Email", no_spaces=True, width=-1,
+                                                             default_value=wp[6])
+                new_input_contact_phone = dpg.add_input_text(hint="Phone", decimal=True, no_spaces=True,
+                                                             default_value=wp[7])
+                dpg.add_text("Description")
+                new_input_description = dpg.add_input_text(multiline=True, default_value=wp[9])
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Save", user_data=(add_modal_id, True), callback=add_modal_callback)
                 dpg.add_button(label="Cancel", user_data=(add_modal_id, False), callback=add_modal_callback)
     dpg.split_frame()
-    width = dpg.get_item_width(add_modal_id)
-    height = dpg.get_item_height(add_modal_id)
     dpg.set_item_pos(add_modal_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
 
 
 def refresh_workplace_content(editor):
+    def collapse_item_callback(sender, unused, userdata):
+        if userdata[0]:
+            dpg.set_item_user_data(sender, (False, userdata[1]))
+            dpg.set_item_label(sender, "Show more")
+            dpg.hide_item(userdata[1])
+        else:
+            dpg.set_item_user_data(sender, (True, userdata[1]))
+            dpg.set_item_label(sender, "Show less")
+            dpg.show_item(userdata[1])
+
     dpg.delete_item("workplace_content")
     LocalData.workplaces = LocalData.database.get_workplace_content()
     with dpg.group(tag="workplace_content", parent=LocalData.workplaces_tab):
         with dpg.filter_set(id="workplace_filter_id"):
             for wp in LocalData.workplaces:
-                with dpg.group(filter_key=wp[0].lower(), tag=wp[4]):
-                    title = dpg.add_text(wp[0], wrap=0)
+                with dpg.group(filter_key=wp[1].lower(), tag=wp[0]):
+                    title = dpg.add_text(wp[1], wrap=0)
                     dpg.bind_item_font(title, title_font)
-                    desc = dpg.add_text("About", wrap=0)
-                    dpg.bind_item_font(desc, bold_font)
-                    dpg.add_text(wp[1])
-                    loc = dpg.add_text("Location", wrap=0)
-                    dpg.bind_item_font(loc, bold_font)
-                    dpg.add_text(wp[2])
-                    contact = dpg.add_text("Contact Information", wrap=0)
-                    dpg.add_text(wp[3])
-                    dpg.bind_item_font(contact, bold_font)
+                    t = dpg.add_text(wp[2], wrap=0)
+                    with dpg.group(show=False) as collapse:
+                        loc = dpg.add_text("Location", wrap=0)
+                        dpg.bind_item_font(loc, bold_font)
+                        dpg.add_text(wp[3])
+
+                        wh = dpg.add_text("Website", wrap=0)
+                        dpg.bind_item_font(wh, bold_font)
+                        util.hyperlink(wp[8])
+
+                        resources = dpg.add_text("Resources Available")
+                        dpg.bind_item_font(resources, bold_font)
+                        dpg.add_text(wp[4])
+
+                        contact = dpg.add_text("Contact Information", wrap=0)
+                        dpg.bind_item_font(contact, bold_font)
+                        dpg.add_text(wp[5])
+                        dpg.add_text(wp[6])
+                        dpg.add_text(wp[7])
+
+                        description = dpg.add_text("Description")
+                        dpg.bind_item_font(description, bold_font)
+                        dpg.add_text(wp[9])
+
+
                     with dpg.group(horizontal=True):
-                        dpg.add_button(label="Edit", show=editor, user_data=wp, callback=edit_callback)
-                        dpg.add_button(label="Delete", show=editor, user_data=wp, callback=delete_modal_callback)
+                        b = dpg.add_button(label="Show more", user_data=(False, collapse),
+                                           callback=collapse_item_callback)
+                        dpg.bind_item_theme(b, "ClickableText")
+                        b = dpg.add_button(label="Edit", show=editor, user_data=wp, callback=edit_callback)
+                        dpg.bind_item_theme(b, "ClickableText")
+                        b = dpg.add_button(label="Delete", show=editor, user_data=wp, callback=delete_modal_callback)
+                        dpg.bind_item_theme(b, "ClickableText")
                     dpg.add_separator()
 
 
@@ -324,7 +379,8 @@ with dpg.window(tag="Primary Window"):
 
 dpg.bind_item_handler_registry("Primary Window", "primary_handler")
 
-dpg.create_viewport(title="CCHS Coding and Programming", width=800, height=600)
+dpg.create_viewport(title="CTEdb", width=800, height=600)
+dpg.toggle_viewport_fullscreen()
 dpg.setup_dearpygui()
 dpg.show_viewport()
 dpg.set_primary_window("Primary Window", True)
