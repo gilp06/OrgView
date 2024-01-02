@@ -10,7 +10,8 @@ class Database:
     def __init__(self, user, password, server, port):
         self.roles = []
         self.user = user
-        self.conn = psycopg.connect(host=server, port=port, user=user, password=password, dbname="CCHS Database")
+        self.conn = psycopg.connect(host=server, port=port, user=user, password=password, dbname="CCHS Database",
+                                    connect_timeout=5)
         self.cursor = self.conn.cursor()
         self.update_roles()
         print("connected")
@@ -21,7 +22,7 @@ class Database:
         return self.cursor.fetchall()
 
     def delete_id(self, workplace_id):
-        self.cursor.execute("DELETE FROM workplaces WHERE id=%s", workplace_id)
+        self.cursor.execute("DELETE FROM workplaces WHERE id=%s", [workplace_id])
         self.conn.commit()
 
     def add_content(self, values):
@@ -35,7 +36,7 @@ class Database:
             "UPDATE workplaces "
             "SET organization_name=%s, type_of_organization=%s, location=%s, resources_available=%s, "
             "contact_person=%s, contact_email=%s, contact_phone=%s, website=%s, description=%s "
-            "WHERE id=%s", values + (workplace_id,)
+            "WHERE id=%s", values + [workplace_id]
         )
         self.conn.commit()
 

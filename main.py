@@ -50,14 +50,17 @@ def draw_login_panel():
     def login_to_database(sender, unused, user_data):
         dpg.disable_item(login_button)
         dpg.configure_item(login_id, height=135)
-        dpg.set_value(status, "Connecting")
+        dpg.set_value(status, "Connecting...")
         dpg.show_item(status)
         try:
             LocalData.database = Database(dpg.get_value(username), dpg.get_value(password), dpg.get_value(address),
                                           dpg.get_value(port))
-        except psycopg.OperationalError:
-            print("failed to log in")
-            dpg.set_value(status, "Invalid password try again")
+        except psycopg.errors.ConnectionTimeout:
+            dpg.set_value(status, "Connection Timed Out.")
+            dpg.enable_item(login_button)
+            return
+        except psycopg.errors.OperationalError:
+            dpg.set_value(status, "Invalid Username or Password.")
             dpg.enable_item(login_button)
             return
         dpg.hide_item(login_id)
@@ -105,7 +108,7 @@ def draw_workplaces_panel():
 def show_delete_prompt(workplace):
     def delete_callback(sender, unused, user_data):
         if user_data:
-            LocalData.database.delete_id(workplace[4])
+            LocalData.database.delete_id(workplace[0])
             refresh_all_content()
         dpg.hide_item(delete_id)
 
