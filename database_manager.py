@@ -1,6 +1,9 @@
+import os
 import psycopg
 from psycopg import sql
 from enum import Enum, auto
+from datetime import datetime
+import export
 
 
 class Database:
@@ -18,7 +21,7 @@ class Database:
         return self.cursor.fetchall()
 
     def delete_id(self, workplace_id):
-        self.cursor.execute("DELETE FROM workplaces WHERE id=%s", (workplace_id,))
+        self.cursor.execute("DELETE FROM workplaces WHERE id=%s", workplace_id)
         self.conn.commit()
 
     def add_content(self, values):
@@ -72,16 +75,19 @@ class Database:
         print(user)
         print(password)
         self.cursor.execute(
-            sql.SQL("ALTER USER {user} WITH PASSWORD %s;").format(user=sql.Identifier(user)),
-            (str(password),))
+            sql.SQL("ALTER USER {} WITH PASSWORD {};").format(sql.Identifier(user), password))
         self.conn.commit()
 
     def add_user(self, user, password):
         self.cursor.execute(
-            sql.SQL("CREATE ROLE {user} WITH LOGIN").format(user=sql.Identifier(user)))
-        self.cursor.execute(sql.SQL("GRANT viewer TO {user}").format(user=sql.Identifier(user)))
+            sql.SQL("CREATE ROLE {} WITH LOGIN").format(sql.Identifier(user)))
+        self.cursor.execute(sql.SQL("GRANT viewer TO {}").format(sql.Identifier(user)))
         self.change_password(user, password)
 
     def get_enum_options(self):
         self.cursor.execute('select unnest(enum_range(null::"OrganizationType"));')
         return [i[0] for i in self.cursor.fetchall()]
+
+    def export_data(self, path):
+        self.cursor.execute("SELECT * FROM workplaces")
+        export.export(path, self.cursor.fetchall(), self.cursor.description)

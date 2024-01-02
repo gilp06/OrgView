@@ -1,8 +1,7 @@
 import dearpygui.dearpygui as dpg
-import psycopg2
+import psycopg
 import themes
 import util
-from workplace import Workplace
 from database_manager import Database
 
 
@@ -56,7 +55,7 @@ def draw_login_panel():
         try:
             LocalData.database = Database(dpg.get_value(username), dpg.get_value(password), dpg.get_value(address),
                                           dpg.get_value(port))
-        except psycopg2.OperationalError:
+        except psycopg.OperationalError:
             print("failed to log in")
             dpg.set_value(status, "Invalid password try again")
             dpg.enable_item(login_button)
@@ -85,11 +84,20 @@ def draw_login_panel():
         dpg.set_item_pos(login_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
 
 
+def export_workplaces_callback():
+    def file_dialog_callback(sender, appdata):
+        LocalData.database.export_data(appdata['file_path_name'])
+
+    with dpg.file_dialog(callback=file_dialog_callback, default_filename="export", file_count=1, modal=True):
+        dpg.add_file_extension(".csv")
+
+
 def draw_workplaces_panel():
     with dpg.tab(label="Workplaces", parent=LocalData.tab_bar) as LocalData.workplaces_tab:
         dpg.add_input_text(callback=search_workplaces_callback, width=-1, hint="Search Workplaces...")
         with dpg.group(horizontal=True):
             dpg.add_button(label="Refresh", callback=refresh_all_content)
+            dpg.add_button(label="Export", callback=lambda: export_workplaces_callback())
             dpg.add_button(label="+", show=False, callback=lambda: show_modify_modal(), tag="AddButton")
         dpg.add_separator()
 
@@ -230,7 +238,6 @@ def refresh_workplace_content(editor):
                         description = dpg.add_text("Description")
                         dpg.bind_item_font(description, bold_font)
                         dpg.add_text(wp[9])
-
 
                     with dpg.group(horizontal=True):
                         b = dpg.add_button(label="Show more", user_data=(False, collapse),
