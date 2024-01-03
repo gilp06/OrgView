@@ -1,9 +1,6 @@
-import os
 import psycopg
 from psycopg import sql
-from enum import Enum, auto
-from datetime import datetime
-import export
+import util
 
 
 class Database:
@@ -36,7 +33,7 @@ class Database:
             "UPDATE workplaces "
             "SET organization_name=%s, type_of_organization=%s, location=%s, resources_available=%s, "
             "contact_person=%s, contact_email=%s, contact_phone=%s, website=%s, description=%s "
-            "WHERE id=%s", values + [workplace_id]
+            "WHERE id=%s", values + (workplace_id,)
         )
         self.conn.commit()
 
@@ -91,4 +88,4 @@ class Database:
 
     def export_data(self, path):
         self.cursor.execute("SELECT * FROM workplaces")
-        export.export(path, self.cursor.fetchall(), self.cursor.description)
+        util.export(path, self.cursor.fetchall(), self.cursor.description)

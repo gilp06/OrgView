@@ -222,11 +222,11 @@ def refresh_workplace_content(editor):
                     with dpg.group(show=False) as collapse:
                         loc = dpg.add_text("Location", wrap=0)
                         dpg.bind_item_font(loc, bold_font)
-                        dpg.add_text(wp[3])
+                        util.hyperlink(wp[3], util.generate_google_maps_url(wp[3]))
 
                         wh = dpg.add_text("Website", wrap=0)
                         dpg.bind_item_font(wh, bold_font)
-                        util.hyperlink(wp[8])
+                        util.hyperlink(wp[8], wp[8])
 
                         resources = dpg.add_text("Resources Available")
                         dpg.bind_item_font(resources, bold_font)
