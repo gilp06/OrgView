@@ -24,7 +24,6 @@ with open("connection_settings.json", "r") as file:
     connection_config_data = json.load(file)
 
 dpg.create_context()
-# Basically all draw code is written here and must be updated within the dpg.window thingy
 themes.add_themes()
 with dpg.font_registry():
     default_font = dpg.add_font("fonts/NotoSansDisplay-Regular.ttf", 20)
