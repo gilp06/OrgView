@@ -1,4 +1,4 @@
 venv
 dist
 build
-connection_settings.json
+/connection_settings.json
