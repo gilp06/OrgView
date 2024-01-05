@@ -108,7 +108,8 @@ def draw_accounts_panel():
 
 def draw_workplaces_panel():
     with dpg.tab(label="Workplaces", parent=LocalData.tab_bar) as LocalData.workplaces_tab:
-        dpg.add_input_text(callback=search_workplaces_callback, width=-1, hint="Search Workplaces...", tag="WorkplaceSearch")
+        dpg.add_input_text(callback=search_workplaces_callback, width=-1, hint="Search Workplaces...",
+                           tag="WorkplaceSearch")
         with dpg.group(horizontal=True):
             dpg.add_button(label="Refresh", callback=refresh_all_content, tag="Refresh")
             dpg.add_button(label="Export", callback=lambda: export_workplaces_callback(), tag="Export")
@@ -236,6 +237,7 @@ def show_add_user_modal():
 def refresh_workplace_content(editor):
     LocalData.first_edit = 0
     LocalData.first_delete = 0
+
     def collapse_item_callback(sender, unused, userdata):
         if userdata[0]:
             dpg.set_item_user_data(sender, (False, userdata[1]))
@@ -466,20 +468,22 @@ def walkthrough_callback(sender, unused, user_data):
     if "editor" in LocalData.database.roles or "admin" in LocalData.database.roles:
         LocalData.walkthrough_steps.append(("Export", "Opens a menu to export to a .csv file.", 4))
         LocalData.walkthrough_steps.append(("AddButton", "Add new workplace to database.", 4))
-        LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit workplace in database.", 6))
-        LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove workplace from database.", 6))
+        if LocalData.first_edit != 0:
+            LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit workplace in database.", 6))
+            LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove workplace from database.", 6))
     dpg.set_value(LocalData.tab_bar, LocalData.workplaces_tab)
     pos = dpg.get_item_pos(LocalData.walkthrough_steps[0][0])
     pos[1] += dpg.get_item_rect_size(LocalData.walkthrough_steps[0][0])[1] + LocalData.walkthrough_steps[0][2]
     with dpg.window(label="Walkthrough", no_resize=True, autosize=True,
-                    pos=pos, modal=True, tag="WalkthroughWindow", no_title_bar=True):
+                    pos=pos, modal=True, tag="WalkthroughWindow", no_title_bar=True, no_move=True):
         dpg.add_text(LocalData.walkthrough_steps[0][1], tag="WalkthroughText")
         dpg.bind_item_theme(LocalData.walkthrough_steps[0][0], "HelpHighlight")
         dpg.add_button(label="Next", callback=next_item_in_walkthrough)
 
 
 def next_item_in_walkthrough(sender, unused, user_data):
-    if LocalData.walkthrough_steps[0][0] is LocalData.first_edit or LocalData.walkthrough_steps[0][0] is LocalData.first_delete:
+    if LocalData.walkthrough_steps[0][0] is LocalData.first_edit\
+            or LocalData.walkthrough_steps[0][0] is LocalData.first_delete:
         dpg.bind_item_theme(LocalData.walkthrough_steps[0][0], "ClickableText")
     else:
         dpg.bind_item_theme(LocalData.walkthrough_steps[0][0], "")
@@ -493,6 +497,8 @@ def next_item_in_walkthrough(sender, unused, user_data):
     dpg.set_item_pos("WalkthroughWindow", pos)
     dpg.bind_item_theme(LocalData.walkthrough_steps[0][0], "HelpHighlight")
     dpg.set_value("WalkthroughText", LocalData.walkthrough_steps[0][1])
+
+
 # </editor-fold>
 
 # <editor-fold desc="Window Callbacks">
