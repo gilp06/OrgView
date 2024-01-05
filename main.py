@@ -1,3 +1,4 @@
+import json
 import dearpygui.dearpygui as dpg
 import psycopg
 import themes
@@ -19,7 +20,9 @@ class LocalData:
     tab_bar = 0
 
 
-admin = True
+with open("connection_settings.json", "r") as file:
+    connection_config_data = json.load(file)
+
 dpg.create_context()
 # Basically all draw code is written here and must be updated within the dpg.window thingy
 themes.add_themes()
@@ -63,6 +66,10 @@ def draw_login_panel():
             dpg.set_value(status, "Invalid Username or Password.")
             dpg.enable_item(login_button)
             return
+        with open("connection_settings.json", "w") as writeFile:
+            connection_config_data["address"] = dpg.get_value(address)
+            connection_config_data["port"] = dpg.get_value(port)
+            json.dump(connection_config_data, writeFile)
         dpg.hide_item(login_id)
         draw_workplaces_panel()
         draw_accounts_panel()
@@ -75,12 +82,12 @@ def draw_login_panel():
         width = viewport_width // 2
         with dpg.window(no_title_bar=True, modal=True, no_close=True, width=width, height=height, no_move=True,
                         no_resize=True) as login_id:
-            username = dpg.add_input_text(width=-1, hint="Username")
+            username = dpg.add_input_text(width=-1, hint="Username", default_value=connection_config_data["username"])
             password = dpg.add_input_text(width=-1, hint="Password", password=True)
             status = dpg.add_text(parent=login_id, label="Connecting", show=False)
             with dpg.group(show=False) as connection_options_group:
-                address = dpg.add_input_text(label="Address", default_value="localhost")
-                port = dpg.add_input_text(label="Port", default_value="5432")
+                address = dpg.add_input_text(label="Address", default_value=connection_config_data["address"])
+                port = dpg.add_input_text(label="Port", default_value=connection_config_data["port"])
             with dpg.group(horizontal=True):
                 login_button = dpg.add_button(label="Sign in", callback=login_to_database)
                 dpg.add_button(label="Options", callback=connection_options_callback)
