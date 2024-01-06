@@ -272,14 +272,18 @@ def refresh_organization_content(editor):
 
                         contact = dpg.add_text("Contact Information", wrap=0)
                         dpg.bind_item_font(contact, bold_font)
-                        dpg.add_text(wp[5])
-                        dpg.add_text(wp[6])
-                        dpg.add_text(wp[7])
+
+                        if wp[5] != "":
+                            dpg.add_text(wp[5])
+                        if wp[6] != "":
+                            dpg.add_text(wp[6])
+                        if wp[7] != "":
+                            dpg.add_text(wp[7])
 
                         description = dpg.add_text("Description")
                         dpg.bind_item_font(description, bold_font)
-                        LocalData.wrapped_text.append(description)
-                        dpg.add_text(wp[9])
+                        LocalData.wrapped_text.append(dpg.add_text(wp[9]))
+
 
                     with dpg.group(horizontal=True):
                         b = dpg.add_button(label="Show more", user_data=(False, collapse),
@@ -370,7 +374,7 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
             with dpg.group(width=-1):
                 new_input_organization_name = dpg.add_input_text(hint="Organization Name", default_value=wp[1])
                 enum_options = [
-                    "Business","Nonprofit","Not-for-profit","Government","Other"
+                    "Business", "Nonprofit", "Not-for-profit", "Government", "Other"
                 ]
                 new_input_type_of_organization = dpg.add_combo(items=enum_options,
                                                                default_value=(
@@ -485,7 +489,7 @@ def walkthrough_callback(sender, unused, user_data):
 
 
 def next_item_in_walkthrough(sender, unused, user_data):
-    if LocalData.walkthrough_steps[0][0] is LocalData.first_edit\
+    if LocalData.walkthrough_steps[0][0] is LocalData.first_edit \
             or LocalData.walkthrough_steps[0][0] is LocalData.first_delete:
         dpg.bind_item_theme(LocalData.walkthrough_steps[0][0], "ClickableText")
     else:
