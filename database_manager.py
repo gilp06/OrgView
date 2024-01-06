@@ -13,24 +13,24 @@ class Database:
         self.update_roles()
         print("connected")
 
-    def get_workplace_content(self):
+    def get_organization_content(self):
         print("fetching content")
-        self.cursor.execute("SELECT * FROM workplaces")
+        self.cursor.execute("SELECT * FROM organizations")
         return self.cursor.fetchall()
 
     def delete_id(self, workplace_id):
-        self.cursor.execute("DELETE FROM workplaces WHERE id=%s", [workplace_id])
+        self.cursor.execute("DELETE FROM organizations WHERE id=%s", [workplace_id])
         self.conn.commit()
 
     def add_content(self, values):
-        self.cursor.execute("INSERT INTO workplaces(organization_name, type_of_organization, location, "
+        self.cursor.execute("INSERT INTO organizations(organization_name, type_of_organization, location, "
                             "resources_available, contact_person, contact_email, contact_phone, website, "
                             "description) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)", values)
         self.conn.commit()
 
     def edit_id(self, values, workplace_id):
         self.cursor.execute(
-            "UPDATE workplaces "
+            "UPDATE partners "
             "SET organization_name=%s, type_of_organization=%s, location=%s, resources_available=%s, "
             "contact_person=%s, contact_email=%s, contact_phone=%s, website=%s, description=%s "
             "WHERE id=%s", values + (workplace_id,)

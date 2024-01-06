@@ -7,17 +7,17 @@ from database_manager import Database
 
 
 # Create a program that allows your school’s Career and Technical Education Department to
-# collect and store information about local business and community partners. This program
-# should include information on at least 25 different partners, with details such as, but not
+# collect and store information about local business and community organizations. This program
+# should include information on at least 25 different organizations, with details such as, but not
 # limited to, type of organization, resources available, and direct contact information for an
 # individual. The program should enable users to search and filter the information as needed.
 
 # <editor-fold desc="Data storage">
 class LocalData:
     database = None
-    workplaces = []
+    organizations = []
     accounts_tab = 0
-    workplaces_tab = 0
+    organizations_tab = 0
     tab_bar = 0
     wrapped_text = []
     walkthrough_steps = []
@@ -69,7 +69,7 @@ def draw_login_panel():
             connection_config_data["port"] = dpg.get_value(port)
             json.dump(connection_config_data, writeFile)
         dpg.hide_item(login_id)
-        draw_workplaces_panel()
+        draw_organizations_panel()
         draw_accounts_panel()
         draw_help_panel()
         resize_viewport_callback()
@@ -106,13 +106,13 @@ def draw_accounts_panel():
         dpg.add_separator()
 
 
-def draw_workplaces_panel():
-    with dpg.tab(label="Workplaces", parent=LocalData.tab_bar) as LocalData.workplaces_tab:
-        dpg.add_input_text(callback=search_workplaces_callback, width=-1, hint="Search Workplaces...",
-                           tag="WorkplaceSearch")
+def draw_organizations_panel():
+    with dpg.tab(label="Organizations", parent=LocalData.tab_bar) as LocalData.organizations_tab:
+        dpg.add_input_text(callback=search_organizations_callback, width=-1, hint="Search Organizations...",
+                           tag="OrganizationSearch")
         with dpg.group(horizontal=True):
             dpg.add_button(label="Refresh", callback=refresh_all_content, tag="Refresh")
-            dpg.add_button(label="Export", callback=lambda: export_workplaces_callback(), tag="Export")
+            dpg.add_button(label="Export", callback=lambda: export_organizations_callback(), tag="Export")
             dpg.add_button(label="+", show=False, callback=lambda: show_modify_modal(), tag="AddButton")
         dpg.add_separator()
 
@@ -120,8 +120,8 @@ def draw_workplaces_panel():
 # </editor-fold>
 
 # <editor-fold desc="Search bars">
-def search_workplaces_callback(sender, filter_string):
-    dpg.set_value("workplace_filter_id", filter_string)
+def search_organizations_callback(sender, filter_string):
+    dpg.set_value("organization_filter_id", filter_string)
 
 
 def search_users_callback(sender, filter_string):
@@ -233,8 +233,8 @@ def show_add_user_modal():
 
 # </editor-fold>
 
-# <editor-fold desc="Refresh workplaces">
-def refresh_workplace_content(editor):
+# <editor-fold desc="Refresh organizations">
+def refresh_organization_content(editor):
     LocalData.first_edit = 0
     LocalData.first_delete = 0
 
@@ -248,11 +248,11 @@ def refresh_workplace_content(editor):
             dpg.set_item_label(sender, "Show less")
             dpg.show_item(userdata[1])
 
-    dpg.delete_item("workplace_content")
-    LocalData.workplaces = LocalData.database.get_workplace_content()
-    with dpg.group(tag="workplace_content", parent=LocalData.workplaces_tab):
-        with dpg.filter_set(id="workplace_filter_id"):
-            for wp in LocalData.workplaces:
+    dpg.delete_item("organization_content")
+    LocalData.organizations = LocalData.database.get_organization_content()
+    with dpg.group(tag="organization_content", parent=LocalData.organizations_tab):
+        with dpg.filter_set(id="organization_filter_id"):
+            for wp in LocalData.organizations:
                 with dpg.group(filter_key=wp[1].lower(), tag=wp[0]):
                     title = dpg.add_text(wp[1], wrap=0)
                     dpg.bind_item_font(title, title_font)
@@ -300,11 +300,11 @@ def refresh_workplace_content(editor):
 
 # </editor-fold>
 
-# <editor-fold desc="Delete workplace menu">
-def show_delete_prompt(workplace):
+# <editor-fold desc="Delete organization menu">
+def show_delete_prompt(organization):
     def delete_callback(sender, unused, user_data):
         if user_data:
-            LocalData.database.delete_id(workplace[0])
+            LocalData.database.delete_id(organization[0])
             refresh_all_content()
         dpg.hide_item(delete_id)
 
@@ -312,7 +312,7 @@ def show_delete_prompt(workplace):
         viewport_width = dpg.get_viewport_client_width()
         viewport_height = dpg.get_viewport_client_height()
         with dpg.window(no_title_bar=True, modal=True, no_close=True, autosize=True, no_move=True) as delete_id:
-            dpg.add_text("Do you really want to delete this workplace?", wrap=-1)
+            dpg.add_text("Do you really want to delete this organization?", wrap=-1)
             dpg.add_text()
             with dpg.group(horizontal=True):
                 dpg.add_button(label="Yes", width=150, user_data=True, callback=delete_callback)
@@ -325,7 +325,7 @@ def show_delete_prompt(workplace):
 
 # </editor-fold>
 
-# <editor-fold desc="Add/Edit workplaces menu">
+# <editor-fold desc="Add/Edit organizations menu">
 def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
     def add_modal_callback(sender, unused, user_data):
         new_data = (
@@ -394,7 +394,7 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
 # </editor-fold>
 
 # <editor-fold desc="Export menu">
-def export_workplaces_callback():
+def export_organizations_callback():
     def file_dialog_callback(sender, appdata):
         LocalData.database.export_data(appdata['file_path_name'])
 
@@ -422,7 +422,7 @@ def refresh_all_content():
         dpg.hide_item("AddButton")
     LocalData.wrapped_text.clear()
     LocalData.wrapped_text.append("Overview")
-    refresh_workplace_content(editor)
+    refresh_organization_content(editor)
     refresh_accounts_content(dpg.get_value("UserSearch"))
     resize_viewport_callback()
 
@@ -464,14 +464,14 @@ def draw_help_panel():
 def walkthrough_callback(sender, unused, user_data):
     LocalData.walkthrough_steps.clear()
     LocalData.walkthrough_steps.append(("Refresh", "Refreshes all content.", 4))
-    LocalData.walkthrough_steps.append(("WorkplaceSearch", "Search and filter content.", 6))
+    LocalData.walkthrough_steps.append(("OrganizationSearch", "Search and filter content.", 6))
     if "editor" in LocalData.database.roles or "admin" in LocalData.database.roles:
         LocalData.walkthrough_steps.append(("Export", "Opens a menu to export to a .csv file.", 4))
-        LocalData.walkthrough_steps.append(("AddButton", "Add new workplace to database.", 4))
+        LocalData.walkthrough_steps.append(("AddButton", "Add new organization to database.", 4))
         if LocalData.first_edit != 0:
-            LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit workplace in database.", 6))
-            LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove workplace from database.", 6))
-    dpg.set_value(LocalData.tab_bar, LocalData.workplaces_tab)
+            LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit organization in database.", 6))
+            LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove organization from database.", 6))
+    dpg.set_value(LocalData.tab_bar, LocalData.organizations_tab)
     pos = dpg.get_item_pos(LocalData.walkthrough_steps[0][0])
     pos[1] += dpg.get_item_rect_size(LocalData.walkthrough_steps[0][0])[1] + LocalData.walkthrough_steps[0][2]
     with dpg.window(label="Walkthrough", no_resize=True, autosize=True,
