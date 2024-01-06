@@ -369,7 +369,10 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
             # todo add better text input boxes
             with dpg.group(width=-1):
                 new_input_organization_name = dpg.add_input_text(hint="Organization Name", default_value=wp[1])
-                new_input_type_of_organization = dpg.add_combo(items=LocalData.database.get_enum_options(),
+                enum_options = [
+                    "Business","Nonprofit","Not-for-profit","Government","Other"
+                ]
+                new_input_type_of_organization = dpg.add_combo(items=enum_options,
                                                                default_value=(
                                                                    "Organization Type" if wp[2] == "" else wp[2]))
                 new_input_location = dpg.add_input_text(hint="Location", default_value=wp[3])
