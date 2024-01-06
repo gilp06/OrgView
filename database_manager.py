@@ -30,7 +30,7 @@ class Database:
 
     def edit_id(self, values, workplace_id):
         self.cursor.execute(
-            "UPDATE partners "
+            "UPDATE organizations "
             "SET organization_name=%s, type_of_organization=%s, location=%s, resources_available=%s, "
             "contact_person=%s, contact_email=%s, contact_phone=%s, website=%s, description=%s "
             "WHERE id=%s", values + (workplace_id,)
