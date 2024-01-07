@@ -23,6 +23,8 @@ class LocalData:
     walkthrough_steps = []
     first_edit = 0
     first_delete = 0
+    sort_map = {"Organization Name": 1, "Organization Type": 2}
+    sort_mode = "Organization Name"
 
 
 with open("connection_settings.json", "r") as file:
@@ -106,6 +108,11 @@ def draw_accounts_panel():
         dpg.add_separator()
 
 
+def sort_callback(sender, app_data):
+    LocalData.sort_mode = app_data
+    refresh_all_content()
+
+
 def draw_organizations_panel():
     with dpg.tab(label="Organizations", parent=LocalData.tab_bar) as LocalData.organizations_tab:
         dpg.add_input_text(callback=search_organizations_callback, width=-1, hint="Search Organizations...",
@@ -114,6 +121,9 @@ def draw_organizations_panel():
             dpg.add_button(label="Refresh", callback=refresh_all_content, tag="Refresh")
             dpg.add_button(label="Export", callback=lambda: export_organizations_callback(), tag="Export")
             dpg.add_button(label="+", show=False, callback=lambda: show_modify_modal(), tag="AddButton")
+            dpg.add_text("Sort by:")
+            dpg.add_combo(items=list(LocalData.sort_map.keys()), width=160, callback=sort_callback,
+                          default_value=LocalData.sort_mode)
         dpg.add_separator()
 
 
@@ -250,9 +260,10 @@ def refresh_organization_content(editor):
 
     dpg.delete_item("organization_content")
     LocalData.organizations = LocalData.database.get_organization_content()
+    sorted_list = sorted(list(LocalData.organizations), key=lambda x: x[LocalData.sort_map[LocalData.sort_mode]])
     with dpg.group(tag="organization_content", parent=LocalData.organizations_tab):
         with dpg.filter_set(id="organization_filter_id"):
-            for wp in LocalData.organizations:
+            for wp in sorted_list:
                 with dpg.group(filter_key=wp[1].lower(), tag=wp[0]):
                     title = dpg.add_text(wp[1], wrap=0)
                     dpg.bind_item_font(title, title_font)
