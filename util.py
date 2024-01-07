@@ -5,9 +5,9 @@ import csv
 import os
 
 
-def hyperlink(display, address):
-    b = dpg.add_button(label=display, callback=lambda: webbrowser.open(address))
-    dpg.bind_item_theme(b, "hyperlinkTheme")
+def hyperlink(display, address, tag):
+    b = dpg.add_button(label=display, callback=lambda: webbrowser.open(address), tag=tag)
+    dpg.bind_item_theme(item=tag, theme="hyperlinkTheme")
 
 
 def export(file_path, data, labels):

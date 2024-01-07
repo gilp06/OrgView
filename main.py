@@ -29,7 +29,7 @@ with open("connection_settings.json", "r") as file:
     connection_config_data = json.load(file)
 
 dpg.create_context()
-themes.add_themes()
+
 with dpg.font_registry():
     default_font = dpg.add_font("fonts/NotoSansDisplay-Regular.ttf", 20)
     title_font = dpg.add_font("fonts/NotoSansDisplay-Regular.ttf", 32)
@@ -258,13 +258,16 @@ def refresh_organization_content(editor):
                     dpg.bind_item_font(title, title_font)
                     t = dpg.add_text(wp[2], wrap=0)
                     with dpg.group(show=False) as collapse:
-                        loc = dpg.add_text("Location", wrap=0)
-                        dpg.bind_item_font(loc, bold_font)
-                        util.hyperlink(wp[3], util.generate_google_maps_url(wp[3]))
 
-                        wh = dpg.add_text("Website", wrap=0)
-                        dpg.bind_item_font(wh, bold_font)
-                        util.hyperlink(wp[8], wp[8])
+                        if wp[3] != "":
+                            loc = dpg.add_text("Location", wrap=0)
+                            dpg.bind_item_font(loc, bold_font)
+                            util.hyperlink(wp[3], util.generate_google_maps_url(wp[3]), str(wp[0]) + "hyperlink")
+
+                        if wp[8] != "":
+                            wh = dpg.add_text("Website", wrap=0)
+                            dpg.bind_item_font(wh, bold_font)
+                            util.hyperlink(wp[8], wp[8], str(wp[0]) + "website")
 
                         resources = dpg.add_text("Resources Available")
                         dpg.bind_item_font(resources, bold_font)
@@ -283,7 +286,6 @@ def refresh_organization_content(editor):
                         description = dpg.add_text("Description")
                         dpg.bind_item_font(description, bold_font)
                         LocalData.wrapped_text.append(dpg.add_text(wp[9]))
-
 
                     with dpg.group(horizontal=True):
                         b = dpg.add_button(label="Show more", user_data=(False, collapse),
@@ -332,6 +334,7 @@ def show_delete_prompt(organization):
 # <editor-fold desc="Add/Edit organizations menu">
 def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
     def add_modal_callback(sender, unused, user_data):
+        dpg.disable_item(sender)
         new_data = (
             dpg.get_value(new_input_organization_name),
             dpg.get_value(new_input_type_of_organization)
@@ -359,6 +362,7 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
         dpg.set_value(new_input_contact_email, "")
         dpg.set_value(new_input_contact_phone, "")
         dpg.set_value(new_input_description, "")
+        dpg.enable_item(sender)
         dpg.hide_item(add_modal_id)
 
     with dpg.mutex():
@@ -535,6 +539,7 @@ def resize_viewport_callback():
 # </editor-fold>
 
 with dpg.window(tag="Primary Window"):
+    themes.add_themes()
     dpg.bind_font(default_font)
     LocalData.tab_bar = dpg.add_tab_bar()
 
