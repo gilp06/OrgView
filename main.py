@@ -484,7 +484,7 @@ def refresh_all_content():
 # <editor-fold desc="Help Panel">
 def draw_help_panel():
     # Help menu
-    with dpg.tab(label="Help", parent=LocalData.tab_bar):
+    with dpg.tab(label="Help", parent=LocalData.tab_bar, tag="HelpTab"):
         with dpg.group(horizontal=True):
             dpg.add_text("Press this button to take a tour through CTEdb: ")
             dpg.add_button(label="Walkthrough", callback=walkthrough_callback)
@@ -516,27 +516,35 @@ def draw_help_panel():
 # <editor-fold desc="Walkthrough">
 def walkthrough_callback(sender, unused, user_data):
     # Works as a queue to step through each of the tutorial item positions and descriptions.
+    dpg.delete_item(LocalData.accounts_tab)
+    dpg.delete_item(LocalData.organizations_tab)
+    dpg.delete_item("HelpTab")
+    draw_organizations_panel()
+    draw_accounts_panel()
+    draw_help_panel()
+    refresh_all_content()
     LocalData.walkthrough_steps.clear()
-    LocalData.walkthrough_steps.append(("Refresh", "Refreshes all content.", 4))
+    LocalData.walkthrough_steps.append(("Refresh", "Refreshes all content.", 100))
     LocalData.walkthrough_steps.append(("OrganizationSearch", "Search and filter content.", 6))
     if "editor" in LocalData.database.roles or "admin" in LocalData.database.roles:
         LocalData.walkthrough_steps.append(("Export", "Opens a menu to export to a .csv file.", 4))
         LocalData.walkthrough_steps.append(("AddButton", "Add new organization to database.", 4))
         # Edge case of no items in the table.
         if LocalData.first_edit != 0:
-            LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit organization in database.", 6))
-            LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove organization from database.", 6))
+            LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit organization in database.", 8))
+            LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove organization from database.", 8))
     dpg.set_value(LocalData.tab_bar, LocalData.organizations_tab)
     pos = dpg.get_item_pos(LocalData.walkthrough_steps[0][0])
     pos[1] += dpg.get_item_rect_size(LocalData.walkthrough_steps[0][0])[1] + LocalData.walkthrough_steps[0][2]
     with dpg.window(label="Walkthrough", no_resize=True, autosize=True,
-                    pos=pos, modal=True, tag="WalkthroughWindow", no_title_bar=True, no_move=True):
+                    pos=pos, tag="WalkthroughWindow", no_title_bar=True, no_move=True):
         dpg.add_text(LocalData.walkthrough_steps[0][1], tag="WalkthroughText")
         dpg.bind_item_theme(LocalData.walkthrough_steps[0][0], "HelpHighlight")
         dpg.add_button(label="Next", callback=next_item_in_walkthrough)
 
 
 def next_item_in_walkthrough(sender, unused, user_data):
+    print(dpg.get_value("TabBar"))
     if LocalData.walkthrough_steps[0][0] is LocalData.first_edit \
             or LocalData.walkthrough_steps[0][0] is LocalData.first_delete:
         dpg.bind_item_theme(LocalData.walkthrough_steps[0][0], "ClickableText")
@@ -585,7 +593,8 @@ def resize_viewport_callback():
 
 with dpg.window(tag="Primary Window"):
     dpg.bind_font(default_font)
-    LocalData.tab_bar = dpg.add_tab_bar()
+    with dpg.tab_bar(tag="TabBar") as LocalData.tab_bar:
+        pass
 
 dpg.bind_item_handler_registry("Primary Window", "primary_handler")
 
