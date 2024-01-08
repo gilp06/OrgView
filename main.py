@@ -39,10 +39,12 @@ with dpg.font_registry():
 
 themes.add_themes()
 
+
 # </editor-fold>
 
 # <editor-fold desc="Login/Initial setup">
 def draw_login_panel():
+    # Manually controlling height
     def connection_options_callback(sender, unused, user_data):
         if dpg.is_item_shown(connection_options_group):
             dpg.configure_item(connection_options_group, show=False)
@@ -51,6 +53,9 @@ def draw_login_panel():
             dpg.configure_item(connection_options_group, show=True)
             dpg.configure_item(login_id, height=164)
 
+    # Async callback on login, will disable until connection either succeeds or fails.
+    # Default data is stored in each of the properties in connection_settings.json if
+    # successfully connected
     def login_to_database(sender, unused, user_data):
         dpg.disable_item(login_button)
         dpg.configure_item(login_id, height=135)
@@ -59,6 +64,7 @@ def draw_login_panel():
         try:
             LocalData.database = Database(dpg.get_value(username), dpg.get_value(password), dpg.get_value(address),
                                           dpg.get_value(port))
+        # Loopback on exceptions
         except psycopg.errors.ConnectionTimeout:
             dpg.set_value(status, "Connection Timed Out.")
             dpg.enable_item(login_button)
@@ -67,17 +73,20 @@ def draw_login_panel():
             dpg.set_value(status, "Invalid Username or Password.")
             dpg.enable_item(login_button)
             return
+        # Overwrite current data
         with open("connection_settings.json", "w") as writeFile:
             connection_config_data["address"] = dpg.get_value(address)
             connection_config_data["port"] = dpg.get_value(port)
             json.dump(connection_config_data, writeFile)
         dpg.hide_item(login_id)
+        # Draw one time items, and refresh dynamic content
         draw_organizations_panel()
         draw_accounts_panel()
         draw_help_panel()
         resize_viewport_callback()
         refresh_all_content()
 
+    # Mutex is used to split the frame, so we can fetch viewport size without it throwing a fit.
     with dpg.mutex():
         height = 102
         viewport_width = dpg.get_viewport_client_width()
@@ -94,6 +103,7 @@ def draw_login_panel():
             with dpg.group(horizontal=True):
                 login_button = dpg.add_button(label="Sign in", callback=login_to_database)
                 dpg.add_button(label="Options", callback=connection_options_callback)
+        # Centers item
         dpg.set_item_pos(login_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
 
 
@@ -110,6 +120,7 @@ def draw_accounts_panel():
 
 
 def sort_callback(sender, app_data):
+    # Sets current value to reference in dictionary for sorting.
     LocalData.sort_mode = app_data
     refresh_all_content()
 
@@ -132,10 +143,12 @@ def draw_organizations_panel():
 
 # <editor-fold desc="Search bars">
 def search_organizations_callback(sender, filter_string):
+    # Set the filter-string in the dynamic organization content.
     dpg.set_value("organization_filter_id", filter_string)
 
 
 def search_users_callback(sender, filter_string):
+    # Manually filter because tables don't support filter-keys
     refresh_accounts_content(filter_string)
 
 
@@ -143,6 +156,9 @@ def search_users_callback(sender, filter_string):
 
 # <editor-fold desc="Refresh accounts menu for admins">
 def refresh_accounts_content(filter_string):
+    # user_data is passed as a tuple, with first value containing type of user, and the other containing their
+    # username.
+    # If user_data[0] is true then they are an editor already, and they need to be demoted to viewer.
     def change_role_callback(sender, unused, user_data):
         print(user_data)
         if user_data[0]:
@@ -157,13 +173,16 @@ def refresh_accounts_content(filter_string):
         LocalData.database.delete_user(user_data)
         refresh_all_content()
 
+    # Manual sorting
     user_list = list(LocalData.database.get_users())
     user_list.sort()
     dpg.delete_item("accounts_content")
+    # Hide if not in admin role
     if 'admin' not in LocalData.database.roles:
         return
     with dpg.group(tag="accounts_content", parent=LocalData.accounts_tab):
         with dpg.table(header_row=True):
+            # Setup columns
             dpg.add_table_column(label="Username")
             dpg.add_table_column(label="Permissions")
             dpg.add_table_column()
@@ -176,6 +195,7 @@ def refresh_accounts_content(filter_string):
                     role = LocalData.database.get_roles_for_user(i[0])[0]
                     dpg.add_text(i[0])
                     dpg.add_text(str.title(role))
+                    # Only show editing options for non-admins
                     if role != 'admin':
                         text = "Enable Editing" if role == 'viewer' else "Disable Editing"
                         dpg.add_button(label=text, user_data=(role == 'editor', i[0]), callback=change_role_callback)
@@ -214,6 +234,7 @@ def show_reset_password(sender, unused, user):
 # <editor-fold desc="Add new user menu">
 def show_add_user_modal():
     def add_modal_callback(sender, unused, user_data):
+        # Sent as a tuple, first value sends the window to be closed, second sends whether it is saved or cancelled.
         if user_data[1]:
             new_name = dpg.get_value(new_input_name)
             new_password = dpg.get_value(new_input_password)
@@ -223,14 +244,13 @@ def show_add_user_modal():
         dpg.set_value(new_input_password, "")
         dpg.hide_item(add_user_modal_id)
 
+    # See other mutex for reason.
     with dpg.mutex():
         viewport_width = dpg.get_item_width("Primary Window")
         viewport_height = dpg.get_item_height("Primary Window")
-
         with dpg.window(no_title_bar=True, modal=True, no_close=True, autosize=True, no_move=True) as add_user_modal_id:
             title = dpg.add_text("Add User")
             dpg.bind_item_font(title, title_font)
-            # todo add better text input boxes
             new_input_name = dpg.add_input_text(label="Username")
             new_input_password = dpg.add_input_text(label="Password")
             with dpg.group(horizontal=True):
@@ -249,6 +269,7 @@ def refresh_organization_content(editor):
     LocalData.first_edit = 0
     LocalData.first_delete = 0
 
+    # Sent as a tuple, first value is whether it is already collapsed, and second is the item to collapse/show more.
     def collapse_item_callback(sender, unused, userdata):
         if userdata[0]:
             dpg.set_item_user_data(sender, (False, userdata[1]))
@@ -260,6 +281,7 @@ def refresh_organization_content(editor):
             dpg.show_item(userdata[1])
 
     dpg.delete_item("organization_content")
+    # Tuple converted into a list and sorted by name or type, depending on LocalData.sort_map
     LocalData.organizations = LocalData.database.get_organization_content()
     sorted_list = sorted(list(LocalData.organizations), key=lambda x: x[LocalData.sort_map[LocalData.sort_mode]])
     with dpg.group(tag="organization_content", parent=LocalData.organizations_tab):
@@ -270,7 +292,7 @@ def refresh_organization_content(editor):
                     dpg.bind_item_font(title, title_font)
                     t = dpg.add_text(wp[2], wrap=0)
                     with dpg.group(show=False) as collapse:
-
+                        # Special keys for each type of link.
                         if wp[3] != "":
                             loc = dpg.add_text("Location", wrap=0)
                             dpg.bind_item_font(loc, bold_font)
@@ -287,7 +309,7 @@ def refresh_organization_content(editor):
 
                         contact = dpg.add_text("Contact Information", wrap=0)
                         dpg.bind_item_font(contact, bold_font)
-
+                        # Don't add if they aren't defined.
                         if wp[5] != "":
                             dpg.add_text(wp[5])
                         if wp[6] != "":
@@ -326,6 +348,7 @@ def show_delete_prompt(organization):
             refresh_all_content()
         dpg.hide_item(delete_id)
 
+    # Mutex again for centered window yippee!
     with dpg.mutex():
         viewport_width = dpg.get_viewport_client_width()
         viewport_height = dpg.get_viewport_client_height()
@@ -345,11 +368,13 @@ def show_delete_prompt(organization):
 
 # <editor-fold desc="Add/Edit organizations menu">
 def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
+    # Very ugly but it works.
     def add_modal_callback(sender, unused, user_data):
         dpg.disable_item(sender)
         new_data = (
             dpg.get_value(new_input_organization_name),
             dpg.get_value(new_input_type_of_organization)
+            # Handle edge case of someone forgetting to change Organization Type from default.
             if dpg.get_value(new_input_type_of_organization) != "Organization Type" else "Business",
             dpg.get_value(new_input_location),
             dpg.get_value(new_input_resources_available),
@@ -359,12 +384,14 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
             dpg.get_value(new_input_website),
             dpg.get_value(new_input_description)
         )
-        if user_data[1]:
+        if user_data:
+            # If true it means they confirmed.
             if edit:
                 LocalData.database.edit_id(new_data, wp[0])
             else:
                 LocalData.database.add_content(new_data)
             refresh_all_content()
+        # Reset window to default values
         dpg.set_value(new_input_organization_name, "")
         dpg.set_value(new_input_type_of_organization, "")
         dpg.set_value(new_input_location, "")
@@ -386,9 +413,9 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
                         no_resize=True) as add_modal_id:
             title = dpg.add_text("Edit Business/Organization") if edit else dpg.add_text("Add Business/Organization")
             dpg.bind_item_font(title, title_font)
-            # todo add better text input boxes
             with dpg.group(width=-1):
                 new_input_organization_name = dpg.add_input_text(hint="Organization Name", default_value=wp[1])
+                # Manually added enum options to prevent a crash fetching them.
                 enum_options = [
                     "Business", "Nonprofit", "Not-for-profit", "Government", "Other"
                 ]
@@ -408,8 +435,8 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
                 dpg.add_text("Description")
                 new_input_description = dpg.add_input_text(multiline=True, default_value=wp[9])
             with dpg.group(horizontal=True):
-                dpg.add_button(label="Save", user_data=(add_modal_id, True), callback=add_modal_callback)
-                dpg.add_button(label="Cancel", user_data=(add_modal_id, False), callback=add_modal_callback)
+                dpg.add_button(label="Save", user_data=True, callback=add_modal_callback)
+                dpg.add_button(label="Cancel", user_data=False, callback=add_modal_callback)
     dpg.split_frame()
     dpg.set_item_pos(add_modal_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2])
 
@@ -418,6 +445,7 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
 
 # <editor-fold desc="Export menu">
 def export_organizations_callback():
+    # Opens a DearPyGui file dialog and pulls the entire table.
     def file_dialog_callback(sender, appdata):
         LocalData.database.export_data(appdata['file_path_name'])
 
@@ -429,6 +457,7 @@ def export_organizations_callback():
 
 # <editor-fold desc="Main refresh function">
 def refresh_all_content():
+    # Don't attempt to pull data from places the user doesn't have permission to view.
     LocalData.database.update_roles()
     dpg.hide_item(LocalData.accounts_tab)
     editor = False
@@ -454,6 +483,7 @@ def refresh_all_content():
 
 # <editor-fold desc="Help Panel">
 def draw_help_panel():
+    # Help menu
     with dpg.tab(label="Help", parent=LocalData.tab_bar):
         with dpg.group(horizontal=True):
             dpg.add_text("Press this button to take a tour through CTEdb: ")
@@ -485,16 +515,17 @@ def draw_help_panel():
 
 # <editor-fold desc="Walkthrough">
 def walkthrough_callback(sender, unused, user_data):
+    # Works as a queue to step through each of the tutorial item positions and descriptions.
     LocalData.walkthrough_steps.clear()
     LocalData.walkthrough_steps.append(("Refresh", "Refreshes all content.", 4))
     LocalData.walkthrough_steps.append(("OrganizationSearch", "Search and filter content.", 6))
     if "editor" in LocalData.database.roles or "admin" in LocalData.database.roles:
         LocalData.walkthrough_steps.append(("Export", "Opens a menu to export to a .csv file.", 4))
         LocalData.walkthrough_steps.append(("AddButton", "Add new organization to database.", 4))
+        # Edge case of no items in the table.
         if LocalData.first_edit != 0:
             LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit organization in database.", 6))
             LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove organization from database.", 6))
-    print(LocalData.walkthrough_steps)
     dpg.set_value(LocalData.tab_bar, LocalData.organizations_tab)
     pos = dpg.get_item_pos(LocalData.walkthrough_steps[0][0])
     pos[1] += dpg.get_item_rect_size(LocalData.walkthrough_steps[0][0])[1] + LocalData.walkthrough_steps[0][2]
@@ -544,6 +575,7 @@ with dpg.item_handler_registry(tag="primary_handler") as handler:
     dpg.add_item_visible_handler(callback=visible_call)
 
 
+# DIY text wrap lol
 def resize_viewport_callback():
     for i in LocalData.wrapped_text:
         dpg.configure_item(i, wrap=(dpg.get_viewport_client_width() - 20))
@@ -565,6 +597,7 @@ dpg.setup_dearpygui()
 dpg.show_viewport()
 dpg.set_primary_window("Primary Window", True)
 dpg.start_dearpygui()
+# Safe disconnect
 if LocalData.database:
     LocalData.database.disconnect()
 dpg.destroy_context()
