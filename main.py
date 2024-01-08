@@ -37,6 +37,7 @@ with dpg.font_registry():
     title_font = dpg.add_font("fonts/NotoSansDisplay-Regular.ttf", 32)
     bold_font = dpg.add_font("fonts/NotoSansDisplay-Bold.ttf", 20)
 
+themes.add_themes()
 
 # </editor-fold>
 
@@ -493,6 +494,7 @@ def walkthrough_callback(sender, unused, user_data):
         if LocalData.first_edit != 0:
             LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit organization in database.", 6))
             LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove organization from database.", 6))
+    print(LocalData.walkthrough_steps)
     dpg.set_value(LocalData.tab_bar, LocalData.organizations_tab)
     pos = dpg.get_item_pos(LocalData.walkthrough_steps[0][0])
     pos[1] += dpg.get_item_rect_size(LocalData.walkthrough_steps[0][0])[1] + LocalData.walkthrough_steps[0][2]
@@ -550,7 +552,6 @@ def resize_viewport_callback():
 # </editor-fold>
 
 with dpg.window(tag="Primary Window"):
-    themes.add_themes()
     dpg.bind_font(default_font)
     LocalData.tab_bar = dpg.add_tab_bar()
 
