@@ -565,5 +565,6 @@ dpg.setup_dearpygui()
 dpg.show_viewport()
 dpg.set_primary_window("Primary Window", True)
 dpg.start_dearpygui()
-LocalData.database.disconnect()
+if LocalData.database:
+    LocalData.database.disconnect()
 dpg.destroy_context()

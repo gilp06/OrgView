@@ -91,4 +91,5 @@ class Database:
         util.export(path, self.cursor.fetchall(), self.cursor.description)
 
     def disconnect(self):
-        self.conn.close()
+        if self.conn:
+            self.conn.close()
