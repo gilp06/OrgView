@@ -89,3 +89,6 @@ class Database:
     def export_data(self, path):
         self.cursor.execute("SELECT * FROM workplaces")
         util.export(path, self.cursor.fetchall(), self.cursor.description)
+
+    def disconnect(self):
+        self.conn.close()
