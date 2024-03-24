@@ -1,9 +1,9 @@
 import json
 import dearpygui.dearpygui as dpg
 import psycopg
-import themes
-import util
-from database_manager import Database
+from helper import themes, util
+from helper.database_manager import Database
+from helper.organization import Organization
 
 
 # Create a program that allows your school’s Career and Technical Education Department to
@@ -13,6 +13,7 @@ from database_manager import Database
 # individual. The program should enable users to search and filter the information as needed.
 
 # <editor-fold desc="Data storage">
+
 class LocalData:
     database = None
     organizations = []
@@ -23,7 +24,7 @@ class LocalData:
     walkthrough_steps = []
     first_edit = 0
     first_delete = 0
-    sort_map = {"Organization Name": 1, "Organization Type": 2}
+    sort_types = ["Organization Name", "Organization Type"]
     sort_mode = "Organization Name"
 
 
@@ -134,8 +135,9 @@ def draw_organizations_panel():
             dpg.add_button(label="Export", callback=lambda: export_organizations_callback(), tag="Export")
             dpg.add_button(label="+", show=False, callback=lambda: show_modify_modal(), tag="AddButton")
             dpg.add_text("Sort by:")
-            dpg.add_combo(items=list(LocalData.sort_map.keys()), width=160, callback=sort_callback,
+            dpg.add_combo(items=list(LocalData.sort_types), width=160, callback=sort_callback,
                           default_value=LocalData.sort_mode)
+            dpg.add_button(label="?", callback=walkthrough_callback)
         dpg.add_separator()
 
 
@@ -265,6 +267,13 @@ def show_add_user_modal():
 # </editor-fold>
 
 # <editor-fold desc="Refresh organizations">
+def get_sort_key(org):
+    if LocalData.sort_mode == "Organization Name":
+        return org.organization_name
+    elif LocalData.sort_mode == "Organization Type":
+        return org.type_of_organization
+
+
 def refresh_organization_content(editor):
     LocalData.first_edit = 0
     LocalData.first_delete = 0
@@ -282,44 +291,45 @@ def refresh_organization_content(editor):
 
     dpg.delete_item("organization_content")
     # Tuple converted into a list and sorted by name or type, depending on LocalData.sort_map
-    LocalData.organizations = LocalData.database.get_organization_content()
-    sorted_list = sorted(list(LocalData.organizations), key=lambda x: x[LocalData.sort_map[LocalData.sort_mode]])
+    LocalData.organizations = [Organization(*org) for org in LocalData.database.get_organization_content()]
+    sorted_list = sorted(LocalData.organizations, key=lambda org: get_sort_key(org) )
     with dpg.group(tag="organization_content", parent=LocalData.organizations_tab):
         with dpg.filter_set(id="organization_filter_id"):
             for wp in sorted_list:
-                with dpg.group(filter_key=wp[1].lower(), tag=wp[0]):
-                    title = dpg.add_text(wp[1], wrap=0)
+                with dpg.group(filter_key=wp.organization_name.lower(), tag=wp.organization_id):
+                    title = dpg.add_text(wp.organization_name, wrap=0)
                     dpg.bind_item_font(title, title_font)
-                    t = dpg.add_text(wp[2], wrap=0)
+                    t = dpg.add_text(wp.type_of_organization, wrap=0)
                     with dpg.group(show=False) as collapse:
                         # Special keys for each type of link.
-                        if wp[3] != "":
+                        if wp.location != "":
                             loc = dpg.add_text("Location", wrap=0)
                             dpg.bind_item_font(loc, bold_font)
-                            util.hyperlink(wp[3], util.generate_google_maps_url(wp[3]), str(wp[0]) + "hyperlink")
+                            util.hyperlink(wp.location, util.generate_google_maps_url(wp.location), str(wp.organization_id)
+                                           + "hyperlink")
 
-                        if wp[8] != "":
+                        if wp.website != "":
                             wh = dpg.add_text("Website", wrap=0)
                             dpg.bind_item_font(wh, bold_font)
-                            util.hyperlink(wp[8], wp[8], str(wp[0]) + "website")
+                            util.hyperlink(wp.website, wp.website, str(wp.organization_id) + "website")
 
                         resources = dpg.add_text("Resources Available")
                         dpg.bind_item_font(resources, bold_font)
-                        LocalData.wrapped_text.append(dpg.add_text(wp[4]))
+                        LocalData.wrapped_text.append(dpg.add_text(wp.resources_available))
 
                         contact = dpg.add_text("Contact Information", wrap=0)
                         dpg.bind_item_font(contact, bold_font)
                         # Don't add if they aren't defined.
-                        if wp[5] != "":
-                            dpg.add_text(wp[5])
-                        if wp[6] != "":
-                            dpg.add_text(wp[6])
-                        if wp[7] != "":
-                            dpg.add_text(wp[7])
+                        if wp.contact_person != "":
+                            dpg.add_text(wp.contact_person)
+                        if wp.contact_email != "":
+                            dpg.add_text(wp.contact_email)
+                        if wp.contact_phone != "":
+                            dpg.add_text(wp.contact_phone)
 
                         description = dpg.add_text("Description")
                         dpg.bind_item_font(description, bold_font)
-                        LocalData.wrapped_text.append(dpg.add_text(wp[9]))
+                        LocalData.wrapped_text.append(dpg.add_text(wp.description))
 
                     with dpg.group(horizontal=True):
                         b = dpg.add_button(label="Show more", user_data=(False, collapse),
@@ -344,7 +354,7 @@ def refresh_organization_content(editor):
 def show_delete_prompt(organization):
     def delete_callback(sender, unused, user_data):
         if user_data:
-            LocalData.database.delete_id(organization[0])
+            LocalData.database.delete_id(organization.organization_id)
             refresh_all_content()
         dpg.hide_item(delete_id)
 
@@ -367,29 +377,37 @@ def show_delete_prompt(organization):
 # </editor-fold>
 
 # <editor-fold desc="Add/Edit organizations menu">
-def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
+def show_modify_modal(current_org=Organization(), edit=False):
     # Very ugly but it works.
     def add_modal_callback(sender, unused, user_data):
         dpg.disable_item(sender)
-        new_data = (
+        new_data = Organization(
+            current_org.organization_id,
             dpg.get_value(new_input_organization_name),
-            dpg.get_value(new_input_type_of_organization)
-            # Handle edge case of someone forgetting to change Organization Type from default.
-            if dpg.get_value(new_input_type_of_organization) != "Organization Type" else "Business",
+            dpg.get_value(new_input_type_of_organization),
             dpg.get_value(new_input_location),
             dpg.get_value(new_input_resources_available),
             dpg.get_value(new_input_contact_person),
             dpg.get_value(new_input_contact_email),
             dpg.get_value(new_input_contact_phone),
             dpg.get_value(new_input_website),
-            dpg.get_value(new_input_description)
+            dpg.get_value(new_input_description),
         )
         if user_data:
+            dpg.delete_item(dpg.delete_item("validation_issues"))
             # If true it means they confirmed.
+            validation_issues = util.get_validation_issues(new_data)
+            if len(validation_issues) > 0:
+                issues_group = dpg.add_group(parent=add_modal_id, before=save_options_buttons)
+                dpg.add_alias("validation_issues", issues_group)
+                for item in validation_issues:
+                    dpg.add_text(item, parent=issues_group)
+                dpg.enable_item(sender)
+                return
             if edit:
-                LocalData.database.edit_id(new_data, wp[0])
+                LocalData.database.edit_id(new_data.get_values_as_tuple())
             else:
-                LocalData.database.add_content(new_data)
+                LocalData.database.add_content(new_data.get_values_as_tuple()[:9])
             refresh_all_content()
         # Reset window to default values
         dpg.set_value(new_input_organization_name, "")
@@ -414,27 +432,27 @@ def show_modify_modal(wp=("", "", "", "", "", "", "", "", "", ""), edit=False):
             title = dpg.add_text("Edit Business/Organization") if edit else dpg.add_text("Add Business/Organization")
             dpg.bind_item_font(title, title_font)
             with dpg.group(width=-1):
-                new_input_organization_name = dpg.add_input_text(hint="Organization Name", default_value=wp[1])
+                new_input_organization_name = dpg.add_input_text(hint="Organization Name", default_value=current_org.organization_name)
                 # Manually added enum options to prevent a crash fetching them.
                 enum_options = [
                     "Business", "Nonprofit", "Not-for-profit", "Government", "Other"
                 ]
                 new_input_type_of_organization = dpg.add_combo(items=enum_options,
                                                                default_value=(
-                                                                   "Organization Type" if wp[2] == "" else wp[2]))
-                new_input_location = dpg.add_input_text(hint="Location", default_value=wp[3])
-                new_input_website = dpg.add_input_text(hint="Website", default_value=wp[8])
+                                                                   "Organization Type" if current_org.type_of_organization == "" else current_org.type_of_organization))
+                new_input_location = dpg.add_input_text(hint="Location", default_value=current_org.location)
+                new_input_website = dpg.add_input_text(hint="Website", default_value=current_org.website)
                 dpg.add_text("Resources Available")
-                new_input_resources_available = dpg.add_input_text(multiline=True, default_value=wp[4])
+                new_input_resources_available = dpg.add_input_text(multiline=True, default_value=current_org.resources_available)
                 dpg.add_text("Contact Information")
-                new_input_contact_person = dpg.add_input_text(hint="Name", width=-1, default_value=wp[5])
+                new_input_contact_person = dpg.add_input_text(hint="Name", width=-1, default_value=current_org.contact_person)
                 new_input_contact_email = dpg.add_input_text(hint="Email", no_spaces=True, width=-1,
-                                                             default_value=wp[6])
+                                                             default_value=current_org.contact_email)
                 new_input_contact_phone = dpg.add_input_text(hint="Phone", decimal=True, no_spaces=True,
-                                                             default_value=wp[7])
+                                                             default_value=current_org.contact_phone)
                 dpg.add_text("Description")
-                new_input_description = dpg.add_input_text(multiline=True, default_value=wp[9])
-            with dpg.group(horizontal=True):
+                new_input_description = dpg.add_input_text(multiline=True, default_value=current_org.description)
+            with dpg.group(horizontal=True) as save_options_buttons:
                 dpg.add_button(label="Save", user_data=True, callback=add_modal_callback)
                 dpg.add_button(label="Cancel", user_data=False, callback=add_modal_callback)
     dpg.split_frame()
@@ -484,10 +502,9 @@ def refresh_all_content():
 # <editor-fold desc="Help Panel">
 def draw_help_panel():
     # Help menu
-    with dpg.tab(label="Help", parent=LocalData.tab_bar):
+    with dpg.tab(label="About", parent=LocalData.tab_bar):
         with dpg.group(horizontal=True):
-            dpg.add_text("Press this button to take a tour through CTEdb: ")
-            dpg.add_button(label="Walkthrough", callback=walkthrough_callback)
+            dpg.add_text("Press the \"?\" button in the Organizations tab to go through an interactive tutorial.")
         subtitle = dpg.add_text("Overview")
         dpg.bind_item_font(subtitle, bold_font)
         dpg.add_text("CTEdb is a simple and user-friendly database tool designed to help manage information for local "
@@ -526,7 +543,6 @@ def walkthrough_callback(sender, unused, user_data):
         if LocalData.first_edit != 0:
             LocalData.walkthrough_steps.append((LocalData.first_edit, "Edit organization in database.", 6))
             LocalData.walkthrough_steps.append((LocalData.first_delete, "Remove organization from database.", 6))
-    dpg.set_value(LocalData.tab_bar, LocalData.organizations_tab)
     pos = dpg.get_item_pos(LocalData.walkthrough_steps[0][0])
     pos[1] += dpg.get_item_rect_size(LocalData.walkthrough_steps[0][0])[1] + LocalData.walkthrough_steps[0][2]
     with dpg.window(label="Walkthrough", no_resize=True, autosize=True,

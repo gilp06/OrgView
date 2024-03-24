@@ -1,6 +1,6 @@
 import psycopg
 from psycopg import sql
-import util
+import helper.util
 
 
 class Database:
@@ -20,8 +20,8 @@ class Database:
         return self.cursor.fetchall()
 
     # Deletes using unique id of item
-    def delete_id(self, workplace_id):
-        self.cursor.execute("DELETE FROM organizations WHERE id=%s", [workplace_id])
+    def delete_id(self, organization_id):
+        self.cursor.execute("DELETE FROM organizations WHERE id=%s", [organization_id])
         self.conn.commit()
 
     # Adds new item, letting it generate a new id in the 0th slot.
@@ -32,12 +32,12 @@ class Database:
         self.conn.commit()
 
     # Edits based on unique id.
-    def edit_id(self, values, workplace_id):
+    def edit_id(self, values):
         self.cursor.execute(
             "UPDATE organizations "
             "SET organization_name=%s, type_of_organization=%s, location=%s, resources_available=%s, "
             "contact_person=%s, contact_email=%s, contact_phone=%s, website=%s, description=%s "
-            "WHERE id=%s", values + (workplace_id,)
+            "WHERE id=%s", values
         )
         self.conn.commit()
 
@@ -97,7 +97,7 @@ class Database:
     # Fetches all from organizations and places it in a .csv file.
     def export_data(self, path):
         self.cursor.execute("SELECT * FROM organizations")
-        util.export(path, self.cursor.fetchall(), self.cursor.description)
+        helper.util.export(path, self.cursor.fetchall(), self.cursor.description)
 
     # Safely ends connection
     def disconnect(self):
