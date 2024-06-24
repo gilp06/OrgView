@@ -32,6 +32,7 @@ class LocalData:
     user_input = None
     login_id = None
     logo_id = None
+    description_text_id = None
 
 
 # Load connection settings from JSON file
@@ -67,11 +68,13 @@ def draw_login_panel():
     Creates the login panel interface, allowing user authentication. This panel collects user credentials
     and attempts to establish a database connection based on these credentials.
     """
-
     def connection_options_callback(sender, unused, user_data):
         """
         Toggles additional connection settings display based on the current visibility of the connection options group.
         This provides a way for users to modify connection settings like address and port dynamically.
+        - sender: The widget (button) that triggered this callback.
+        - unused: Unused in this callback, reserved for potential future use.
+        - user_data: Optional data that can be passed to the callback.
         """
         toggle = not dpg.is_item_shown(connection_options_group)
         dpg.configure_item(connection_options_group, show=toggle)
@@ -90,7 +93,6 @@ def draw_login_panel():
                                           dpg.get_value(port))
             dpg.hide_item(login_id)
             draw_main_interface()
-            dpg.delete_item("LogoGroup")  # Hide or delete the logo after login
         except (psycopg.errors.ConnectionTimeout, psycopg.errors.OperationalError) as e:
             dpg.set_value(status, "Connection Failed: " + str(e))
             dpg.enable_item(login_button)
@@ -107,8 +109,7 @@ def draw_login_panel():
             username = dpg.add_input_text(width=input_width, hint="Username",
                                           default_value=connection_config_data["username"])
             password = dpg.add_input_text(width=input_width, hint="Password", password=True)
-            status = dpg.add_text(parent=login_id, label="Connecting", show=False,
-                                  color=(255, 255, 255))  # White text color
+            status = dpg.add_text(parent=login_id, label="Connecting", show=False)
             with dpg.group(show=False) as connection_options_group:
                 address = dpg.add_input_text(width=input_width, label="Address",
                                              default_value=connection_config_data["address"])
@@ -116,7 +117,21 @@ def draw_login_panel():
             with dpg.group(horizontal=True):
                 login_button = dpg.add_button(label="Sign in", callback=login_to_database)
                 dpg.add_button(label="Options", callback=connection_options_callback)
+
         center_login_panel()  # Center the login panel initially
+
+
+# Draw the description text with proper positioning
+def draw_description():
+    """
+    Draw the description text box for the application.
+    """
+    with dpg.window(tag="DescriptionWindow", no_move=True, no_resize=True, no_title_bar=True, no_scrollbar=True, width=400, height=200):
+        dpg.add_text("OrgView is a user-friendly database tool designed to help manage information for local businesses and organizations. "
+                     "It allows multiple users to browse and edit information on each business, and securely stores that information in a remote database. "
+                     "OrgView is always up-to-date with the latest changes made by you and other contributors. "
+                     "Data entry is easy, and data exporting is supported, allowing exports to .csv for use in other programs.", wrap=380)
+
 
 
 def center_login_panel():
@@ -131,6 +146,12 @@ def center_login_panel():
         dpg.set_item_pos(LocalData.login_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2 + 50])
         if dpg.does_item_exist("LogoImage"):
             dpg.set_item_pos("LogoImage", [viewport_width // 2 - 100, viewport_height // 2 - height // 2 - 150])
+        if dpg.does_item_exist("DescriptionText"):
+            dpg.set_item_pos("DescriptionText", [viewport_width // 2 + width // 2 + 20, viewport_height // 2 - height // 2 + 50])
+        if dpg.does_item_exist("DescriptionWindow"):
+            viewport_width = dpg.get_viewport_client_width()
+            viewport_height = dpg.get_viewport_client_height()
+            dpg.set_item_pos("DescriptionWindow", [viewport_width // 2 - 300, viewport_height // 2 - 250])
 
 
 def draw_logo():
@@ -154,7 +175,9 @@ def visible_call(sender, app_data):
     """
     draw_login_panel()
     draw_logo()
-    dpg.bind_item_handler_registry("Primary Window", 0)
+    draw_description()
+    center_login_panel()
+    center_description()
 
 
 # Adjust the font size for the login screen
