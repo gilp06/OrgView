@@ -63,35 +63,31 @@ def load_texture(image_path):
 
 
 # Draw the login panel with the logo
+# Draw the login panel with the logo
 def draw_login_panel():
-    """
-    Creates the login panel interface, allowing user authentication. This panel collects user credentials
-    and attempts to establish a database connection based on these credentials.
-    """
     def connection_options_callback(sender, unused, user_data):
-        """
-        Toggles additional connection settings display based on the current visibility of the connection options group.
-        This provides a way for users to modify connection settings like address and port dynamically.
-        - sender: The widget (button) that triggered this callback.
-        - unused: Unused in this callback, reserved for potential future use.
-        - user_data: Optional data that can be passed to the callback.
-        """
         toggle = not dpg.is_item_shown(connection_options_group)
         dpg.configure_item(connection_options_group, show=toggle)
         center_login_panel()
 
     def login_to_database(sender, unused, user_data):
-        """ Authenticates the user credentials against the database and handles connection status updates.
-        - sender: The widget (button) that triggered this callback.
-        - unused: Unused in this callback, reserved for potential future use.
-        - user_data: Optional data that can be passed to the callback. """
         dpg.disable_item(login_button)
         dpg.set_value(status, "Connecting...")
         dpg.show_item(status)
         try:
             LocalData.database = Database(dpg.get_value(username), dpg.get_value(password), dpg.get_value(address),
                                           dpg.get_value(port))
-            dpg.hide_item(login_id)
+            print("Login successful")
+            if dpg.does_item_exist(LocalData.login_id):
+                print("Deleting login panel")
+                dpg.delete_item(LocalData.login_id)
+            if dpg.does_item_exist("LogoWindow"):
+                print("Deleting logo window")
+                dpg.delete_item("LogoWindow")
+            if dpg.does_item_exist("DescriptionWindow"):
+                print("Deleting description window")
+                dpg.delete_item("DescriptionWindow")
+            dpg.split_frame()  # Ensure the GUI updates
             draw_main_interface()
         except (psycopg.errors.ConnectionTimeout, psycopg.errors.OperationalError) as e:
             dpg.set_value(status, "Connection Failed: " + str(e))
@@ -101,66 +97,63 @@ def draw_login_panel():
         viewport_width = dpg.get_viewport_client_width()
         viewport_height = dpg.get_viewport_client_height()
         fixed_width = 400  # Set a constant width for the login panel
-        with dpg.window(no_title_bar=True, modal=True, no_close=True, width=fixed_width, autosize=True,
-                        no_move=True) as login_id:
+        with dpg.window(no_title_bar=True, modal=True, no_close=True, width=fixed_width, autosize=True, no_move=True) as login_id:
             LocalData.login_id = login_id  # Store the login_id for future use
 
             input_width = fixed_width - 20  # Set a constant width for input fields
-            username = dpg.add_input_text(width=input_width, hint="Username",
-                                          default_value=connection_config_data["username"])
+            username = dpg.add_input_text(width=input_width, hint="Username", default_value=connection_config_data["username"])
             password = dpg.add_input_text(width=input_width, hint="Password", password=True)
             status = dpg.add_text(parent=login_id, label="Connecting", show=False)
             with dpg.group(show=False) as connection_options_group:
-                address = dpg.add_input_text(width=input_width, label="Address",
-                                             default_value=connection_config_data["address"])
+                address = dpg.add_input_text(width=input_width, label="Address", default_value=connection_config_data["address"])
                 port = dpg.add_input_text(width=input_width, label="Port", default_value=connection_config_data["port"])
             with dpg.group(horizontal=True):
                 login_button = dpg.add_button(label="Sign in", callback=login_to_database)
                 dpg.add_button(label="Options", callback=connection_options_callback)
 
-        center_login_panel()  # Center the login panel initially
+    center_login_panel()  # Center the login panel initially
 
 
-# Draw the description text with proper positioning
+
 def draw_description():
-    """
-    Draw the description text box for the application.
-    """
-    with dpg.window(tag="DescriptionWindow", no_move=True, no_resize=True, no_title_bar=True, no_scrollbar=True, width=400, height=200):
-        dpg.add_text("OrgView is a user-friendly database tool designed to help manage information for local businesses and organizations. "
-                     "It allows multiple users to browse and edit information on each business, and securely stores that information in a remote database. "
-                     "OrgView is always up-to-date with the latest changes made by you and other contributors. "
-                     "Data entry is easy, and data exporting is supported, allowing exports to .csv for use in other programs.", wrap=380)
-
+    if not dpg.does_item_exist("DescriptionWindow"):
+        with dpg.child_window(width=400, height=200, no_scrollbar=True, tag="DescriptionWindow", parent="Primary Window"):
+            dpg.add_text("OrgView is a user-friendly database tool designed to help manage information for local businesses and organizations. "
+                         "It allows multiple users to browse and edit information on each business, and securely stores that information in a remote database. "
+                         "OrgView is always up-to-date with the latest changes made by you and other contributors. "
+                         "Data entry is easy, and data exporting is supported, allowing exports to .csv for use in other programs.", wrap=380, tag="DescriptionText")
 
 
 def center_login_panel():
-    """
-    Centers the login panel and logo in the viewport.
-    """
     if dpg.does_item_exist(LocalData.login_id):
         viewport_width = dpg.get_viewport_client_width()
         viewport_height = dpg.get_viewport_client_height()
-        width = dpg.get_item_width(LocalData.login_id)
-        height = dpg.get_item_height(LocalData.login_id)
-        dpg.set_item_pos(LocalData.login_id, [viewport_width // 2 - width // 2, viewport_height // 2 - height // 2 + 50])
-        if dpg.does_item_exist("LogoImage"):
-            dpg.set_item_pos("LogoImage", [viewport_width // 2 - 100, viewport_height // 2 - height // 2 - 150])
-        if dpg.does_item_exist("DescriptionText"):
-            dpg.set_item_pos("DescriptionText", [viewport_width // 2 + width // 2 + 20, viewport_height // 2 - height // 2 + 50])
-        if dpg.does_item_exist("DescriptionWindow"):
-            viewport_width = dpg.get_viewport_client_width()
-            viewport_height = dpg.get_viewport_client_height()
-            dpg.set_item_pos("DescriptionWindow", [viewport_width // 2 - 300, viewport_height // 2 - 250])
+        login_width = dpg.get_item_width(LocalData.login_id)
+        login_height = dpg.get_item_height(LocalData.login_id)
 
+        login_x = (viewport_width - login_width) // 2
+        login_y = (viewport_height - login_height) // 2
+        dpg.set_item_pos(LocalData.login_id, [login_x, login_y])
+
+        if dpg.does_item_exist("LogoWindow"):
+            logo_width = dpg.get_item_width("LogoWindow")
+            logo_height = dpg.get_item_height("LogoWindow")
+            logo_x = (viewport_width - logo_width) // 2
+            logo_y = login_y - logo_height - 20
+            dpg.set_item_pos("LogoWindow", [logo_x, logo_y])
+
+        if dpg.does_item_exist("DescriptionWindow"):
+            desc_width = dpg.get_item_width("DescriptionWindow")
+            desc_height = dpg.get_item_height("DescriptionWindow")
+            desc_x = login_x + login_width + 20
+            desc_y = (viewport_height - desc_height) // 2
+            dpg.set_item_pos("DescriptionWindow", [desc_x, desc_y])
 
 def draw_logo():
-    """
-    Draws the logo image above the login panel.
-    """
     if LocalData.logo_id:
-        with dpg.group(tag="LogoGroup", parent="Primary Window"):
-            dpg.add_image(LocalData.logo_id, width=200, height=200, tag="LogoImage")
+        if not dpg.does_item_exist("LogoWindow"):
+            with dpg.child_window(width=200, height=200, no_scrollbar=True, tag="LogoWindow", parent="Primary Window"):
+                dpg.add_image(LocalData.logo_id, width=200, height=200, tag="LogoImage")
 
 
 logo_path = "Images/Logo.png"
@@ -177,7 +170,6 @@ def visible_call(sender, app_data):
     draw_logo()
     draw_description()
     center_login_panel()
-    center_description()
 
 
 # Adjust the font size for the login screen
@@ -260,7 +252,6 @@ def resize_viewport_callback():
         dpg.configure_item(i, wrap=(dpg.get_viewport_client_width() - 20))
     center_login_panel()  # Center the login panel when the viewport is resized
 
-    # Reposition the chatbox button on resize
     if dpg.does_item_exist("ChatboxButton"):
         dpg.set_item_pos("ChatboxButton",
                          [dpg.get_viewport_client_width() - 80, dpg.get_viewport_client_height() - 100])
@@ -869,9 +860,11 @@ def edit_callback(sender, unused, user_data):
 
 # </editor-fold>
 
+# Bind the function to handle when the primary window becomes visible
 with dpg.item_handler_registry(tag="primary_handler") as handler:
     dpg.add_item_visible_handler(callback=visible_call)
 
+# Create the primary window
 with dpg.window(tag="Primary Window"):
     dpg.bind_font(default_font)
     LocalData.tab_bar = dpg.add_tab_bar()
@@ -881,6 +874,7 @@ dpg.bind_item_handler_registry("Primary Window", "primary_handler")
 dpg.create_viewport(title="OrgView", width=800, height=600)
 dpg.setup_dearpygui()
 dpg.show_viewport()
+dpg.maximize_viewport()
 
 # Bind resize callback
 dpg.set_viewport_resize_callback(resize_viewport_callback)
