@@ -1,7 +1,3 @@
-Here's the updated README with the requested changes:
-
----
-
 # OrgView
 
 OrgView is a comprehensive database management tool designed to assist the Career and Technical Education Department in managing information about local businesses and community organizations. It provides a centralized platform to store, search, filter, and manage organization details, making it easier to connect with community partners.
